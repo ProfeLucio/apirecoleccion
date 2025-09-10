@@ -12,9 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('posiciones', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
+        $table->uuid('id')->primary();
+        $table->foreignUuid('recorrido_id')->constrained('recorridos')->onDelete('cascade');
+        $table->timestamp('capturado_ts');
         });
+
+        // Columna PostGIS para la coordenada
+        DB::statement('ALTER TABLE posiciones ADD COLUMN geom geometry(POINT, 4326)');
     }
 
     /**

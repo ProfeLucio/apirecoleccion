@@ -12,9 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('barrios', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
+            $table->string('nombre');
             $table->timestamps();
         });
+
+        // Columna PostGIS para el polígono del barrio
+        DB::statement('ALTER TABLE barrios ADD COLUMN geom geometry(MULTIPOLYGON, 4326)');
     }
 
     /**

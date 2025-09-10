@@ -12,7 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('recorridos', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('ruta_id')->constrained('rutas');
+            $table->foreignUuid('vehiculo_id')->constrained('vehiculos');
+            $table->foreignUuid('conductor_id')->constrained('usuarios');
+            $table->timestamp('ts_inicio');
+            $table->timestamp('ts_fin')->nullable();
+            $table->string('estado', 20); // 'Planificado', 'En Curso', etc.
             $table->timestamps();
         });
     }
