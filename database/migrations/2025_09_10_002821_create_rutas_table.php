@@ -13,15 +13,13 @@ return new class extends Migration
     {
         Schema::create('rutas', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('nombre');
+            $table->foreignUuid('perfil_id')->constrained('perfiles'); // <-- ESTA LÍNEA FALTABA O ESTABA INCORRECTA
+            $table->string('nombre_ruta');
             $table->string('color_hex', 7)->nullable();
-            $table->decimal('longitud_m', 10, 2)->nullable();
-            $table->boolean('activo')->default(true);
             $table->timestamps();
         });
+        DB::statement('ALTER TABLE rutas ADD COLUMN shape geometry(MULTILINESTRING, 4326)');
 
-        // Columna PostGIS para el trazado de la ruta
-        DB::statement('ALTER TABLE rutas ADD COLUMN shape geometry(LINESTRING, 4326)');
     }
 
     /**

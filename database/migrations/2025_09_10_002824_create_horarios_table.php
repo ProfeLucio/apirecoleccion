@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('horarios', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->foreignUuid('ruta_id')->constrained('rutas')->onDelete('cascade');
+            $table->foreignUuid('perfil_id')->constrained('perfiles');
             $table->smallInteger('dia_semana'); // 0=Domingo, 6=Sábado
             $table->time('hora_inicio_plan');
             $table->smallInteger('ventana_min')->nullable(); // Duración estimada

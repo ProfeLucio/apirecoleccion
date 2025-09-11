@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('roles', function (Blueprint $table) {
-            $table->smallIncrements('id');
-            $table->string('nombre', 50);
+            $table->uuid('id')->primary();
+            $table->string('nombre', 50)->unique(); // <-- ¡Debe ser 'nombre', no 'placa'!
         });
     }
 

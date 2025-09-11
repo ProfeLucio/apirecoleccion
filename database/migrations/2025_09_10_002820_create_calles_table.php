@@ -11,14 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('vehiculos', function (Blueprint $table) {
+        Schema::create('calles', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('placa', 10)->unique();
-            $table->string('marca')->nullable();
-            $table->string('modelo')->nullable();
-            $table->boolean('activo')->default(true);
+            $table->string('nombre');
             $table->timestamps();
         });
+        DB::statement('ALTER TABLE calles ADD COLUMN shape geometry(LINESTRING, 4326)');
     }
 
     /**
@@ -26,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('vehiculos');
+        Schema::dropIfExists('calles');
     }
 };

@@ -11,14 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('barrios', function (Blueprint $table) {
+        Schema::create('vehiculos', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('nombre');
+            $table->string('placa', 10)->unique();
+            $table->string('marca')->nullable();
+            $table->string('modelo')->nullable();
+            $table->boolean('activo')->default(true);
+            $table->foreignUuid('perfil_id')->constrained('perfiles');
             $table->timestamps();
         });
-
-        // Columna PostGIS para el polígono del barrio
-        DB::statement('ALTER TABLE barrios ADD COLUMN geom geometry(MULTIPOLYGON, 4326)');
     }
 
     /**
@@ -26,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('barrios');
+        Schema::dropIfExists('vehiculos');
     }
 };

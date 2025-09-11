@@ -1,0 +1,1279 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "API de Recolección de Residuos",
+        "description": "Documentación de la API para el sistema de gestión de rutas de recolección.",
+        "contact": {
+            "email": "soporte@tuempresa.com"
+        },
+        "version": "1.0.0"
+    },
+    "paths": {
+        "/api/calles": {
+            "get": {
+                "tags": [
+                    "Calles"
+                ],
+                "summary": "Listar todas las calles",
+                "description": "Devuelve una lista de todas las calles disponibles en el sistema. Es un recurso global y no se filtra por perfil.",
+                "operationId": "6f66bb59913021b7f43a06001656ac1a",
+                "responses": {
+                    "200": {
+                        "description": "Operación exitosa",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Calle"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/calles/{id}": {
+            "get": {
+                "tags": [
+                    "Calles"
+                ],
+                "summary": "Obtener detalles de una calle",
+                "description": "Devuelve los detalles de una calle específica, incluyendo su geometría.",
+                "operationId": "966deaff98560e851418861a9af2b25a",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID de la calle",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detalles de la calle",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Calle"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Calle no encontrada",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Calle no encontrada"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/horarios": {
+            "get": {
+                "tags": [
+                    "Horarios"
+                ],
+                "summary": "Listar todos los horarios por perfil",
+                "operationId": "8559ff5b26b44077c955d57b832912a3",
+                "parameters": [
+                    {
+                        "name": "perfil_id",
+                        "in": "query",
+                        "description": "El UUID del perfil para filtrar los horarios.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Operación exitosa",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Horario"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/rutas/{ruta}/horarios": {
+            "post": {
+                "tags": [
+                    "Horarios"
+                ],
+                "summary": "Crear un nuevo horario para una ruta",
+                "description": "Crea un nuevo horario asociado a una ruta específica.",
+                "operationId": "13b0c958559c1240015923317be8c95c",
+                "parameters": [
+                    {
+                        "name": "ruta",
+                        "in": "path",
+                        "description": "ID de la ruta",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "dia_semana",
+                                    "hora_inicio"
+                                ],
+                                "properties": {
+                                    "dia_semana": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "hora_inicio": {
+                                        "type": "string",
+                                        "format": "time",
+                                        "example": "06:00:00"
+                                    },
+                                    "hora_fin": {
+                                        "type": "string",
+                                        "format": "time",
+                                        "example": "08:00:00"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Horario creado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Horario"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validación fallida",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "El campo dia_semana es obligatorio."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/horarios/{id}": {
+            "get": {
+                "tags": [
+                    "Horarios"
+                ],
+                "summary": "Obtener detalles de un horario",
+                "description": "Devuelve los detalles de un horario específico.",
+                "operationId": "a1ec3717b20a0926c0a564ba00e55371",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID del horario",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detalles del horario",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Horario"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Horario no encontrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Horario no encontrado"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Horarios"
+                ],
+                "summary": "Actualizar un horario",
+                "description": "Actualiza los datos de un horario existente.",
+                "operationId": "504575aaec633cd664e1b3555d3b2b81",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID del horario",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "dia_semana": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "hora_inicio": {
+                                        "type": "string",
+                                        "format": "time",
+                                        "example": "06:00:00"
+                                    },
+                                    "hora_fin": {
+                                        "type": "string",
+                                        "format": "time",
+                                        "example": "08:00:00"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Horario actualizado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Horario"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validación fallida",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "El campo hora_inicio es inválido."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Horarios"
+                ],
+                "summary": "Eliminar un horario",
+                "description": "Elimina un horario de la base de datos.",
+                "operationId": "e1ff55b4a73f225b1b1753420ba16550",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID del horario",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Horario eliminado"
+                    },
+                    "404": {
+                        "description": "Horario no encontrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Horario no encontrado"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/perfiles": {
+            "get": {
+                "tags": [
+                    "Perfiles"
+                ],
+                "summary": "Listar todos los perfiles",
+                "operationId": "d8b5e4eedff5983e8d9b00092e706048",
+                "responses": {
+                    "200": {
+                        "description": "Operación exitosa",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Perfil"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/recorridos/{recorrido}/posiciones": {
+            "get": {
+                "tags": [
+                    "Posiciones"
+                ],
+                "summary": "Listar posiciones de un recorrido",
+                "description": "Devuelve el historial de posiciones (GeoJSON) de un recorrido específico.",
+                "operationId": "d48be9ac413dcd1bb7645b6de7fa8308",
+                "parameters": [
+                    {
+                        "name": "recorrido",
+                        "in": "path",
+                        "description": "ID del recorrido",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Listado de posiciones",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Posicion"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recorrido no encontrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Recorrido no encontrado"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Posiciones"
+                ],
+                "summary": "Registrar una nueva posición",
+                "description": "Registra una nueva posición (lat/lon) para un recorrido, enviada por la app móvil.",
+                "operationId": "7bd4f3a61bc3502236f14343142aec81",
+                "parameters": [
+                    {
+                        "name": "recorrido",
+                        "in": "path",
+                        "description": "ID del recorrido",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "lat",
+                                    "lon"
+                                ],
+                                "properties": {
+                                    "lat": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 3.42158
+                                    },
+                                    "lon": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": -76.5205
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Posición registrada",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Posicion"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validación fallida",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "El campo lat es obligatorio."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/recorridos/{recorrido_id}/posiciones": {
+            "post": {
+                "tags": [
+                    "Recorridos"
+                ],
+                "summary": "Registra una nueva posición GPS para un recorrido",
+                "operationId": "b29d84f2ab96c751aacd60aeb61637f4",
+                "parameters": [
+                    {
+                        "name": "recorrido_id",
+                        "in": "path",
+                        "description": "ID del recorrido al que se añade la posición.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "Datos de la nueva posición GPS.",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "latitud",
+                                    "longitud"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Posición registrada exitosamente."
+                    },
+                    "422": {
+                        "description": "Error de validación (ej. faltan coordenadas)."
+                    }
+                }
+            }
+        },
+        "/api/rutas": {
+            "get": {
+                "tags": [
+                    "Rutas"
+                ],
+                "summary": "Listar rutas por perfil",
+                "description": "Devuelve todas las rutas asociadas al perfil especificado por su UUID.",
+                "operationId": "321da46640e0871d972e97900aedc898",
+                "parameters": [
+                    {
+                        "name": "perfil_id",
+                        "in": "query",
+                        "description": "UUID del perfil",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Listado de rutas",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Ruta"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validación fallida",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "El campo perfil_id es obligatorio."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Rutas"
+                ],
+                "summary": "Crear una nueva ruta",
+                "description": "Crea una ruta asociada a un perfil y calles seleccionadas.",
+                "operationId": "eeb1f1beda52bbfcc633c90c8b4f2998",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "nombre_ruta",
+                                    "calles",
+                                    "perfil_id"
+                                ],
+                                "properties": {
+                                    "nombre_ruta": {
+                                        "type": "string",
+                                        "example": "Ruta Norte"
+                                    },
+                                    "calles": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "format": "uuid"
+                                        }
+                                    },
+                                    "perfil_id": {
+                                        "type": "string",
+                                        "format": "uuid",
+                                        "example": "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Ruta creada exitosamente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Ruta"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validación fallida",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "El campo nombre_ruta es obligatorio."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/rutas/{id}": {
+            "get": {
+                "tags": [
+                    "Rutas"
+                ],
+                "summary": "Obtener detalles de una ruta",
+                "description": "Devuelve los detalles de una ruta, incluyendo geometría, horarios y calles.",
+                "operationId": "e50d5e43892d7179b9717dedf4b423b5",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID de la ruta",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detalles de la ruta",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Ruta"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Ruta no encontrada",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Ruta no encontrada"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/vehiculos": {
+            "get": {
+                "tags": [
+                    "Vehiculos"
+                ],
+                "summary": "Listar todos los vehículos",
+                "description": "Devuelve una lista paginada de todos los vehículos de recolección.",
+                "operationId": "b912521b0e41dec60b1fd4d98a0e06fe",
+                "responses": {
+                    "200": {
+                        "description": "Listado de vehículos",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Vehiculo"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Vehiculos"
+                ],
+                "summary": "Crear un nuevo vehículo",
+                "description": "Crea un nuevo vehículo de recolección.",
+                "operationId": "20a2f18df869f0d5e7d5ddce18285c29",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "placa"
+                                ],
+                                "properties": {
+                                    "placa": {
+                                        "type": "string",
+                                        "example": "ABC123"
+                                    },
+                                    "marca": {
+                                        "type": "string",
+                                        "example": "Chevrolet"
+                                    },
+                                    "modelo": {
+                                        "type": "string",
+                                        "example": "2020"
+                                    },
+                                    "activo": {
+                                        "type": "boolean",
+                                        "example": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Vehículo creado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Vehiculo"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validación fallida",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "La placa ya existe."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/vehiculos/{id}": {
+            "get": {
+                "tags": [
+                    "Vehiculos"
+                ],
+                "summary": "Obtener detalles de un vehículo",
+                "description": "Devuelve los detalles de un vehículo específico.",
+                "operationId": "e7cea4106c3b515e1fd8f8fc20a01096",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID del vehículo",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detalles del vehículo",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Vehiculo"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Vehículo no encontrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Vehículo no encontrado"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Vehiculos"
+                ],
+                "summary": "Actualizar un vehículo",
+                "description": "Actualiza los datos de un vehículo existente.",
+                "operationId": "96084827a5107cad2b7ea8faa4eaf765",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID del vehículo",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "placa": {
+                                        "type": "string",
+                                        "example": "ABC123"
+                                    },
+                                    "marca": {
+                                        "type": "string",
+                                        "example": "Chevrolet"
+                                    },
+                                    "modelo": {
+                                        "type": "string",
+                                        "example": "2020"
+                                    },
+                                    "activo": {
+                                        "type": "boolean",
+                                        "example": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Vehículo actualizado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Vehiculo"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validación fallida",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "La placa ya existe."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Vehiculos"
+                ],
+                "summary": "Eliminar un vehículo",
+                "description": "Elimina un vehículo de la base de datos.",
+                "operationId": "9b11c434f19fa00c1d0b5d3fc9ca526e",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID del vehículo",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Vehículo eliminado"
+                    },
+                    "404": {
+                        "description": "Vehículo no encontrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Vehículo no encontrado"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "Calle": {
+                "required": [
+                    "id",
+                    "nombre",
+                    "shape"
+                ],
+                "properties": {
+                    "id": {
+                        "description": "ID único de la calle",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "nombre": {
+                        "description": "Nombre de la calle",
+                        "type": "string",
+                        "example": "Calle 6"
+                    },
+                    "shape": {
+                        "description": "Geometría de la calle en formato GeoJSON",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "Horario": {
+                "required": [
+                    "id",
+                    "dia_semana",
+                    "hora_inicio",
+                    "hora_fin"
+                ],
+                "properties": {
+                    "id": {
+                        "description": "ID único del horario",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "ruta_id": {
+                        "description": "ID de la ruta asociada",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "vehiculo_id": {
+                        "description": "ID del vehículo asignado",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "dia_semana": {
+                        "description": "Día de la semana",
+                        "type": "string",
+                        "example": "Lunes"
+                    },
+                    "hora_inicio": {
+                        "type": "string",
+                        "format": "time",
+                        "example": "08:00:00"
+                    },
+                    "hora_fin": {
+                        "type": "string",
+                        "format": "time",
+                        "example": "12:00:00"
+                    }
+                },
+                "type": "object"
+            },
+            "Perfil": {
+                "required": [
+                    "id",
+                    "nombre_perfil"
+                ],
+                "properties": {
+                    "id": {
+                        "description": "ID único del perfil",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "nombre_perfil": {
+                        "description": "Nombre del perfil de trabajo",
+                        "type": "string",
+                        "example": "Perfil 1"
+                    },
+                    "activo": {
+                        "description": "Indica si el perfil está activo",
+                        "type": "boolean"
+                    },
+                    "created_at": {
+                        "description": "Fecha de creación",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "description": "Fecha de última actualización",
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "Posicion": {
+                "required": [
+                    "id",
+                    "recorrido_id",
+                    "geom",
+                    "capturado_ts"
+                ],
+                "properties": {
+                    "id": {
+                        "description": "ID único del registro de posición",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "recorrido_id": {
+                        "description": "ID del recorrido al que pertenece el punto",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "capturado_ts": {
+                        "description": "Fecha y hora exactas de la captura de la coordenada",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "geom": {
+                        "description": "Geometría del punto en formato GeoJSON",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "Ruta": {
+                "required": [
+                    "id",
+                    "nombre_ruta",
+                    "perfil_id",
+                    "shape"
+                ],
+                "properties": {
+                    "id": {
+                        "description": "ID único de la ruta",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "perfil_id": {
+                        "description": "ID del perfil al que pertenece la ruta",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "nombre_ruta": {
+                        "description": "Nombre de la ruta",
+                        "type": "string",
+                        "example": "Ruta Centro"
+                    },
+                    "color_hex": {
+                        "description": "Color hexadecimal para representar la ruta",
+                        "type": "string",
+                        "example": "#FF5733"
+                    },
+                    "shape": {
+                        "description": "Geometría de la ruta en formato GeoJSON",
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "description": "Fecha de creación",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "description": "Fecha de última actualización",
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "Vehiculo": {
+                "required": [
+                    "id",
+                    "placa",
+                    "perfil_id"
+                ],
+                "properties": {
+                    "id": {
+                        "description": "ID único del vehículo",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "perfil_id": {
+                        "description": "ID del perfil al que pertenece el vehículo",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "placa": {
+                        "description": "Placa del vehículo",
+                        "type": "string",
+                        "example": "ABC-123"
+                    },
+                    "marca": {
+                        "description": "Marca del vehículo",
+                        "type": "string",
+                        "example": "Chevrolet"
+                    },
+                    "modelo": {
+                        "description": "Año del modelo del vehículo",
+                        "type": "integer",
+                        "example": 2022
+                    },
+                    "capacidad": {
+                        "description": "Capacidad de carga en toneladas",
+                        "type": "number",
+                        "format": "float",
+                        "example": 5.5
+                    },
+                    "tipo_combustible": {
+                        "description": "Tipo de combustible",
+                        "type": "string",
+                        "example": "Diésel"
+                    },
+                    "created_at": {
+                        "description": "Fecha de creación",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "description": "Fecha de última actualización",
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Calles",
+            "description": "Calles"
+        },
+        {
+            "name": "Horarios",
+            "description": "Horarios"
+        },
+        {
+            "name": "Perfiles",
+            "description": "Perfiles"
+        },
+        {
+            "name": "Posiciones",
+            "description": "Posiciones"
+        },
+        {
+            "name": "Recorridos",
+            "description": "Recorridos"
+        },
+        {
+            "name": "Rutas",
+            "description": "Rutas"
+        },
+        {
+            "name": "Vehiculos",
+            "description": "Vehiculos"
+        }
+    ]
+}

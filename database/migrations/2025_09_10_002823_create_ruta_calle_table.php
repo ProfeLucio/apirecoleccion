@@ -11,11 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('rutas_barrios', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+        Schema::create('ruta_calle', function (Blueprint $table) {
+            $table->id();
             $table->foreignUuid('ruta_id')->constrained('rutas')->onDelete('cascade');
-            $table->foreignUuid('barrio_id')->constrained('barrios')->onDelete('cascade');
-            $table->timestamps();
+            $table->foreignUuid('calle_id')->constrained('calles')->onDelete('cascade');
+            $table->integer('orden')->default(0);
         });
     }
 
@@ -24,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('rutas_barrios');
+        Schema::dropIfExists('ruta_calle');
     }
 };

@@ -15,10 +15,11 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->foreignUuid('ruta_id')->constrained('rutas');
             $table->foreignUuid('vehiculo_id')->constrained('vehiculos');
-            $table->foreignUuid('conductor_id')->constrained('usuarios');
+            $table->foreignUuid('conductor_id')->constrained('users');
+            $table->foreignUuid('perfil_id')->constrained('perfiles');
             $table->timestamp('ts_inicio');
             $table->timestamp('ts_fin')->nullable();
-            $table->string('estado', 20); // 'Planificado', 'En Curso', etc.
+            $table->string('estado', 20); // 'En Curso', 'Completado', 'Cancelado'
             $table->timestamps();
         });
     }
