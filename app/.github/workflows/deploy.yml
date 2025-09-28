@@ -1,0 +1,67 @@
+name: Deploy Laravel Application
+
+# 1. Trigger: Define cuándo se ejecutará este workflow.
+# Se activará con cada push a la rama 'main'.
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    # 2. Runner: El tipo de máquina virtual donde se ejecutarán los comandos.
+    runs-on: ubuntu-latest
+
+    # 3. Steps: La secuencia de tareas a ejecutar.
+    steps:
+      # 3.1. Checkout: Descarga tu código del repositorio al runner.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+        # 3.4. Setup SSH: Configura la conexión SSH al servidor usando los secretos.
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # 3.5. Deploy to Server: Copia los archivos de la aplicación al servidor.
+      # Usamos rsync para una transferencia eficiente, excluyendo archivos innecesarios.
+      - name: Deploy to server
+        run: |
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+          rsync -avz --exclude '.git' --exclude '.github' --exclude 'vendor' --exclude '.env' \
+          ./ ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}
+
+      # 3.6. Run Post-Deploy Commands: Ejecuta los comandos finales en el servidor.
+      # Este es el paso clave donde se ejecutan las migraciones y se optimiza la app.
+      - name: Run post-deploy commands
+        run: |
+          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} << 'EOF'
+            cd ${{ secrets.DEPLOY_PATH }}
+
+            # Poner la aplicación en modo de mantenimiento
+            php artisan down
+
+            # Crear el archivo .env a partir del secreto de GitHub
+            echo "${{ secrets.LARAVEL_ENV }}" > .env
+
+            # Instalar dependencias de composer en el servidor
+            composer install --no-dev --prefer-dist --optimize-autoloader
+
+            # Ejecutar migraciones y seeders
+            # --force es necesario para entornos no interactivos
+            php artisan migrate --force
+            php artisan db:seed --force
+
+            # Limpiar y cachear configuraciones para optimizar
+            php artisan optimize:clear
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+
+            # Ajustar permisos de directorios
+            chmod -R 775 storage bootstrap/cache
+
+            # Sacar la aplicación del modo de mantenimiento
+            php artisan up
+          EOF
