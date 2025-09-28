@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('posiciones', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->foreignUuid('recorrido_id')->constrained('recorridos')->onDelete('cascade');
+            $table->foreignUuid('vehiculo_id')->constrained('vehiculos');
             $table->foreignUuid('perfil_id')->constrained('perfiles');
             $table->timestamp('capturado_ts');
         });
