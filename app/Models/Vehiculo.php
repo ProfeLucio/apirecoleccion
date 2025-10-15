@@ -29,8 +29,10 @@ class Vehiculo extends Model
         'marca',
         'modelo',
         'activo',
+        'perfil_id',
     ];
 
-    // Definimos las relaciones en el futuro
-    // public function recorridos() { ... }
+    // Es buena práctica definir estas propiedades si usas HasUuids
+    public $incrementing = false;
+    protected $keyType = 'string';
 }

@@ -4,86 +4,113 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Recorrido;
-use App\Models\Posicion;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class RecorridoController extends Controller
 {
-     /**
-     * @OA\Post(
-     * path="/api/recorridos/{recorrido_id}/posiciones",
-     * summary="Registra una nueva posición GPS para un recorrido",
+    /**
+     * @OA\Get(
+     * path="/api/recorridos",
+     * summary="Listar recorridos por perfil",
      * tags={"Recorridos"},
      * @OA\Parameter(
-     * name="recorrido_id",
-     * in="path",
+     * name="perfil_id",
+     * in="query",
      * required=true,
-     * description="ID del recorrido al que se añade la posición.",
+     * description="UUID del perfil para filtrar los recorridos.",
      * @OA\Schema(type="string", format="uuid")
      * ),
+     * @OA\Response(response=200, description="Listado de recorridos."),
+     * @OA\Response(response=422, description="Error de validación.")
+     * )
+     */
+    public function index(Request $request)
+    {
+        $request->validate([
+            'perfil_id' => 'required|uuid|exists:perfiles,id'
+        ]);
+
+        $recorridos = Recorrido::where('perfil_id', $request->query('perfil_id'))
+            ->with(['ruta', 'vehiculo']) // Carga relaciones para más contexto
+            ->orderBy('ts_inicio', 'desc')
+            ->get();
+
+        return response()->json(['data' => $recorridos]);
+    }
+
+    /**
+     * @OA\Post(
+     * path="/api/recorridos",
+     * summary="Iniciar un nuevo recorrido",
+     * description="Crea un nuevo registro de recorrido asociado a un perfil.",
+     * tags={"Recorridos"},
      * @OA\RequestBody(
      * required=true,
-     * description="Datos de la nueva posición GPS.",
      * @OA\JsonContent(
-     * required={"latitud", "longitud"},
-     * @OA\Schema(
-     * type="object",
-     * @OA\Property(property="latitud", type="number", format="float", example=3.890),
-     * @OA\Property(property="longitud", type="number", format="float", example=-77.060)
-     * )
+     * required={"ruta_id", "vehiculo_id", "perfil_id"},
+     * @OA\Property(property="ruta_id", type="string", format="uuid"),
+     * @OA\Property(property="vehiculo_id", type="string", format="uuid"),
+     * @OA\Property(property="perfil_id", type="string", format="uuid")
      * )
      * ),
-     * @OA\Response(
-     * response=201,
-     * description="Posición registrada exitosamente."
-     * ),
-     * @OA\Response(
-     * response=422,
-     * description="Error de validación (ej. faltan coordenadas)."
-     * )
+     * @OA\Response(response=201, description="Recorrido iniciado exitosamente."),
+     * @OA\Response(response=422, description="Datos de validación inválidos.")
      * )
      */
     public function iniciarRecorrido(Request $request)
     {
-        $request->validate([
-            'ruta_id' => 'required|uuid|exists:rutas,id',
+        $validatedData = $request->validate([
+            'ruta_id'     => 'required|uuid|exists:rutas,id',
             'vehiculo_id' => 'required|uuid|exists:vehiculos,id',
+            'perfil_id'   => 'required|uuid|exists:perfiles,id',
         ]);
 
-        // Aquí iría la lógica de autenticación para obtener el ID del conductor
-        $conductorId = auth()->id();
-
         $recorrido = Recorrido::create([
-            'ruta_id' => $request->ruta_id,
-            'vehiculo_id' => $request->vehiculo_id,
-            'conductor_id' => $conductorId,
-            'ts_inicio' => now(),
-            'estado' => 'En Curso',
+            'ruta_id'     => $validatedData['ruta_id'],
+            'vehiculo_id' => $validatedData['vehiculo_id'],
+            'perfil_id'   => $validatedData['perfil_id'],
+            'ts_inicio'   => now(),
+            'estado'      => 'En Curso',
         ]);
 
         return response()->json($recorrido, 201);
     }
 
-
-    public function registrarPosicion(Request $request, Recorrido $recorrido)
+    /**
+     * @OA\Post(
+     * path="/api/recorridos/{recorrido}/finalizar",
+     * summary="Finalizar un recorrido existente",
+     * tags={"Recorridos"},
+     * @OA\Parameter(
+     * name="recorrido",
+     * in="path",
+     * required=true,
+     * description="ID del recorrido a finalizar.",
+     * @OA\Schema(type="string", format="uuid")
+     * ),
+     * @OA\RequestBody(
+     * required=true,
+     * @OA\JsonContent(
+     * required={"perfil_id"},
+     * @OA\Property(property="perfil_id", type="string", format="uuid", description="ID del perfil propietario del recorrido.")
+     * )
+     * ),
+     * @OA\Response(response=200, description="Recorrido finalizado."),
+     * @OA\Response(response=403, description="Acción no autorizada. El perfil no corresponde."),
+     * @OA\Response(response=404, description="Recorrido no encontrado.")
+     * )
+     */
+    public function finalizarRecorrido(Request $request, Recorrido $recorrido)
     {
-        $request->validate([
-            'lat' => 'required|numeric',
-            'lon' => 'required|numeric',
+        $validatedData = $request->validate([
+            'perfil_id' => 'required|uuid|exists:perfiles,id'
         ]);
 
-        $posicion = $recorrido->posiciones()->create([
-            'capturado_ts' => now(),
-            'geom' => DB::raw("ST_SetSRID(ST_MakePoint({$request->lon}, {$request->lat}), 4326)"),
-        ]);
+        // --- ¡Verificación de seguridad clave! ---
+        if ($recorrido->perfil_id !== $validatedData['perfil_id']) {
+            return response()->json(['error' => 'No autorizado para modificar este recorrido.'], 403);
+        }
 
-        return response()->json($posicion, 201);
-    }
-
-
-    public function finalizarRecorrido(Recorrido $recorrido)
-    {
         $recorrido->update([
             'ts_fin' => now(),
             'estado' => 'Completado',

@@ -380,21 +380,12 @@
                 "tags": [
                     "Perfiles"
                 ],
-                "summary": "Listar todos los perfiles",
+                "summary": "Listar todos los perfiles (Deshabilitado)",
+                "description": "Este endpoint ha sido deshabilitado por seguridad para evitar la exposición de los UUIDs de los perfiles.",
                 "operationId": "d8b5e4eedff5983e8d9b00092e706048",
                 "responses": {
-                    "200": {
-                        "description": "Operación exitosa",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/Perfil"
-                                    }
-                                }
-                            }
-                        }
+                    "403": {
+                        "description": "Acceso denegado"
                     }
                 }
             }
@@ -405,7 +396,6 @@
                     "Posiciones"
                 ],
                 "summary": "Listar posiciones de un recorrido",
-                "description": "Devuelve el historial de posiciones (GeoJSON) de un recorrido específico.",
                 "operationId": "d48be9ac413dcd1bb7645b6de7fa8308",
                 "parameters": [
                     {
@@ -415,40 +405,29 @@
                         "required": true,
                         "schema": {
                             "type": "string",
-                            "format": "uuid",
-                            "example": "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "perfil_id",
+                        "in": "query",
+                        "description": "UUID del perfil propietario para verificar el permiso.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Listado de posiciones",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/Posicion"
-                                    }
-                                }
-                            }
-                        }
+                        "description": "Listado de posiciones."
+                    },
+                    "403": {
+                        "description": "Acción no autorizada."
                     },
                     "404": {
-                        "description": "Recorrido no encontrado",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "error": {
-                                            "type": "string",
-                                            "example": "Recorrido no encontrado"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Recorrido no encontrado."
                     }
                 }
             },
@@ -457,7 +436,6 @@
                     "Posiciones"
                 ],
                 "summary": "Registrar una nueva posición",
-                "description": "Registra una nueva posición (lat/lon) para un recorrido, enviada por la app móvil.",
                 "operationId": "7bd4f3a61bc3502236f14343142aec81",
                 "parameters": [
                     {
@@ -467,8 +445,7 @@
                         "required": true,
                         "schema": {
                             "type": "string",
-                            "format": "uuid",
-                            "example": "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
+                            "format": "uuid"
                         }
                     }
                 ],
@@ -479,7 +456,8 @@
                             "schema": {
                                 "required": [
                                     "lat",
-                                    "lon"
+                                    "lon",
+                                    "perfil_id"
                                 ],
                                 "properties": {
                                     "lat": {
@@ -491,6 +469,10 @@
                                         "type": "number",
                                         "format": "float",
                                         "example": -76.5205
+                                    },
+                                    "perfil_id": {
+                                        "type": "string",
+                                        "format": "uuid"
                                     }
                                 },
                                 "type": "object"
@@ -500,46 +482,103 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "Posición registrada",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Posicion"
-                                }
-                            }
-                        }
+                        "description": "Posición registrada."
+                    },
+                    "403": {
+                        "description": "Acción no autorizada."
                     },
                     "422": {
-                        "description": "Validación fallida",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "El campo lat es obligatorio."
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Validación fallida."
                     }
                 }
             }
         },
-        "/api/recorridos/{recorrido_id}/posiciones": {
+        "/api/recorridos": {
+            "get": {
+                "tags": [
+                    "Recorridos"
+                ],
+                "summary": "Listar recorridos por perfil",
+                "operationId": "3679a4c043b8891beea6689d807d4f11",
+                "parameters": [
+                    {
+                        "name": "perfil_id",
+                        "in": "query",
+                        "description": "UUID del perfil para filtrar los recorridos.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Listado de recorridos."
+                    },
+                    "422": {
+                        "description": "Error de validación."
+                    }
+                }
+            },
             "post": {
                 "tags": [
                     "Recorridos"
                 ],
-                "summary": "Registra una nueva posición GPS para un recorrido",
-                "operationId": "b29d84f2ab96c751aacd60aeb61637f4",
+                "summary": "Iniciar un nuevo recorrido",
+                "description": "Crea un nuevo registro de recorrido asociado a un perfil.",
+                "operationId": "b4740bebd0b2ff5cd153b7b32011ef10",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "ruta_id",
+                                    "vehiculo_id",
+                                    "perfil_id"
+                                ],
+                                "properties": {
+                                    "ruta_id": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                    },
+                                    "vehiculo_id": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                    },
+                                    "perfil_id": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Recorrido iniciado exitosamente."
+                    },
+                    "422": {
+                        "description": "Datos de validación inválidos."
+                    }
+                }
+            }
+        },
+        "/api/recorridos/{recorrido}/finalizar": {
+            "post": {
+                "tags": [
+                    "Recorridos"
+                ],
+                "summary": "Finalizar un recorrido existente",
+                "operationId": "137a4cd897a71f875627eda1291cf3c3",
                 "parameters": [
                     {
-                        "name": "recorrido_id",
+                        "name": "recorrido",
                         "in": "path",
-                        "description": "ID del recorrido al que se añade la posición.",
+                        "description": "ID del recorrido a finalizar.",
                         "required": true,
                         "schema": {
                             "type": "string",
@@ -548,120 +587,18 @@
                     }
                 ],
                 "requestBody": {
-                    "description": "Datos de la nueva posición GPS.",
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "latitud",
-                                    "longitud"
-                                ]
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "201": {
-                        "description": "Posición registrada exitosamente."
-                    },
-                    "422": {
-                        "description": "Error de validación (ej. faltan coordenadas)."
-                    }
-                }
-            }
-        },
-        "/api/rutas": {
-            "get": {
-                "tags": [
-                    "Rutas"
-                ],
-                "summary": "Listar rutas por perfil",
-                "description": "Devuelve todas las rutas asociadas al perfil especificado por su UUID.",
-                "operationId": "321da46640e0871d972e97900aedc898",
-                "parameters": [
-                    {
-                        "name": "perfil_id",
-                        "in": "query",
-                        "description": "UUID del perfil",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid",
-                            "example": "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Listado de rutas",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/components/schemas/Ruta"
-                                            }
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validación fallida",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "El campo perfil_id es obligatorio."
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            "post": {
-                "tags": [
-                    "Rutas"
-                ],
-                "summary": "Crear una nueva ruta",
-                "description": "Crea una ruta asociada a un perfil y calles seleccionadas.",
-                "operationId": "eeb1f1beda52bbfcc633c90c8b4f2998",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "required": [
-                                    "nombre_ruta",
-                                    "calles",
                                     "perfil_id"
                                 ],
                                 "properties": {
-                                    "nombre_ruta": {
-                                        "type": "string",
-                                        "example": "Ruta Norte"
-                                    },
-                                    "calles": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "string",
-                                            "format": "uuid"
-                                        }
-                                    },
                                     "perfil_id": {
+                                        "description": "ID del perfil propietario del recorrido.",
                                         "type": "string",
-                                        "format": "uuid",
-                                        "example": "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
+                                        "format": "uuid"
                                     }
                                 },
                                 "type": "object"
@@ -670,82 +607,14 @@
                     }
                 },
                 "responses": {
-                    "201": {
-                        "description": "Ruta creada exitosamente",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Ruta"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validación fallida",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "El campo nombre_ruta es obligatorio."
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/rutas/{id}": {
-            "get": {
-                "tags": [
-                    "Rutas"
-                ],
-                "summary": "Obtener detalles de una ruta",
-                "description": "Devuelve los detalles de una ruta, incluyendo geometría, horarios y calles.",
-                "operationId": "e50d5e43892d7179b9717dedf4b423b5",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "ID de la ruta",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid",
-                            "example": "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
-                        }
-                    }
-                ],
-                "responses": {
                     "200": {
-                        "description": "Detalles de la ruta",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Ruta"
-                                }
-                            }
-                        }
+                        "description": "Recorrido finalizado."
+                    },
+                    "403": {
+                        "description": "Acción no autorizada. El perfil no corresponde."
                     },
                     "404": {
-                        "description": "Ruta no encontrada",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "error": {
-                                            "type": "string",
-                                            "example": "Ruta no encontrada"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Recorrido no encontrado."
                     }
                 }
             }
@@ -755,9 +624,22 @@
                 "tags": [
                     "Vehiculos"
                 ],
-                "summary": "Listar todos los vehículos",
-                "description": "Devuelve una lista paginada de todos los vehículos de recolección.",
+                "summary": "Listar vehículos (filtrado opcional por perfil)",
+                "description": "Devuelve una lista paginada de todos los vehículos, opcionalmente filtrada por perfil_id. Si perfil_id no se proporciona, lista todos los vehículos.",
                 "operationId": "b912521b0e41dec60b1fd4d98a0e06fe",
+                "parameters": [
+                    {
+                        "name": "perfil_id",
+                        "in": "query",
+                        "description": "UUID del perfil para filtrar sus vehículos",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "a1b2c3d4-e5f6-7890-abcd-1234567890ab"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Listado de vehículos",
@@ -771,6 +653,22 @@
                                 }
                             }
                         }
+                    },
+                    "422": {
+                        "description": "Validación fallida (si el UUID es inválido)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "El perfil_id proporcionado es inválido."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     }
                 }
             },
@@ -779,7 +677,7 @@
                     "Vehiculos"
                 ],
                 "summary": "Crear un nuevo vehículo",
-                "description": "Crea un nuevo vehículo de recolección.",
+                "description": "Crea un nuevo vehículo de recolección, requiere el perfil_id en el cuerpo de la petición.",
                 "operationId": "20a2f18df869f0d5e7d5ddce18285c29",
                 "requestBody": {
                     "required": true,
@@ -787,7 +685,8 @@
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "placa"
+                                    "placa",
+                                    "perfil_id"
                                 ],
                                 "properties": {
                                     "placa": {
@@ -805,6 +704,12 @@
                                     "activo": {
                                         "type": "boolean",
                                         "example": true
+                                    },
+                                    "perfil_id": {
+                                        "description": "ID del perfil al que pertenece el vehículo",
+                                        "type": "string",
+                                        "format": "uuid",
+                                        "example": "e6a7b8c9-d0e1-2345-fghi-678901234567"
                                     }
                                 },
                                 "type": "object"
@@ -831,7 +736,7 @@
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "La placa ya existe."
+                                            "example": "La placa ya existe o el perfil_id es inválido."
                                         }
                                     },
                                     "type": "object"
@@ -848,13 +753,13 @@
                     "Vehiculos"
                 ],
                 "summary": "Obtener detalles de un vehículo",
-                "description": "Devuelve los detalles de un vehículo específico.",
+                "description": "Devuelve los detalles de un vehículo específico por su ID.",
                 "operationId": "e7cea4106c3b515e1fd8f8fc20a01096",
                 "parameters": [
                     {
                         "name": "id",
                         "in": "path",
-                        "description": "ID del vehículo",
+                        "description": "ID del vehículo (UUID)",
                         "required": true,
                         "schema": {
                             "type": "string",
@@ -897,13 +802,13 @@
                     "Vehiculos"
                 ],
                 "summary": "Actualizar un vehículo",
-                "description": "Actualiza los datos de un vehículo existente.",
+                "description": "Actualiza los datos de un vehículo existente usando su ID.",
                 "operationId": "96084827a5107cad2b7ea8faa4eaf765",
                 "parameters": [
                     {
                         "name": "id",
                         "in": "path",
-                        "description": "ID del vehículo",
+                        "description": "ID del vehículo (UUID)",
                         "required": true,
                         "schema": {
                             "type": "string",
@@ -933,6 +838,12 @@
                                     "activo": {
                                         "type": "boolean",
                                         "example": true
+                                    },
+                                    "perfil_id": {
+                                        "description": "Opcional: ID del perfil para reasignar el vehículo",
+                                        "type": "string",
+                                        "format": "uuid",
+                                        "example": "e6a7b8c9-d0e1-2345-fghi-678901234567"
                                     }
                                 },
                                 "type": "object"
@@ -974,13 +885,13 @@
                     "Vehiculos"
                 ],
                 "summary": "Eliminar un vehículo",
-                "description": "Elimina un vehículo de la base de datos.",
+                "description": "Elimina un vehículo de la base de datos por su ID.",
                 "operationId": "9b11c434f19fa00c1d0b5d3fc9ca526e",
                 "parameters": [
                     {
                         "name": "id",
                         "in": "path",
-                        "description": "ID del vehículo",
+                        "description": "ID del vehículo (UUID)",
                         "required": true,
                         "schema": {
                             "type": "string",
@@ -1143,51 +1054,6 @@
                 },
                 "type": "object"
             },
-            "Ruta": {
-                "required": [
-                    "id",
-                    "nombre_ruta",
-                    "perfil_id",
-                    "shape"
-                ],
-                "properties": {
-                    "id": {
-                        "description": "ID único de la ruta",
-                        "type": "string",
-                        "format": "uuid"
-                    },
-                    "perfil_id": {
-                        "description": "ID del perfil al que pertenece la ruta",
-                        "type": "string",
-                        "format": "uuid"
-                    },
-                    "nombre_ruta": {
-                        "description": "Nombre de la ruta",
-                        "type": "string",
-                        "example": "Ruta Centro"
-                    },
-                    "color_hex": {
-                        "description": "Color hexadecimal para representar la ruta",
-                        "type": "string",
-                        "example": "#FF5733"
-                    },
-                    "shape": {
-                        "description": "Geometría de la ruta en formato GeoJSON",
-                        "type": "string"
-                    },
-                    "created_at": {
-                        "description": "Fecha de creación",
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "updated_at": {
-                        "description": "Fecha de última actualización",
-                        "type": "string",
-                        "format": "date-time"
-                    }
-                },
-                "type": "object"
-            },
             "Vehiculo": {
                 "required": [
                     "id",
@@ -1266,10 +1132,6 @@
         {
             "name": "Recorridos",
             "description": "Recorridos"
-        },
-        {
-            "name": "Rutas",
-            "description": "Rutas"
         },
         {
             "name": "Vehiculos",

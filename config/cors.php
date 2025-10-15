@@ -9,6 +9,7 @@ return [
 
     // Orígenes permitidos (dev + device)
     'allowed_origins' => [
+        'http://localhost:65260',       // Angular serve JHJ
         'http://localhost:8100',       // Ionic serve
         'http://127.0.0.1:8100',
         'http://localhost:4200',       // Angular (si lo usas)

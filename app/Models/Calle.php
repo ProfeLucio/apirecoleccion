@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+
 /**
  * @OA\Schema(
  * schema="Calle",
@@ -14,25 +15,18 @@ use Illuminate\Database\Eloquent\Model;
  * @OA\Property(property="shape", type="string", description="Geometría de la calle en formato GeoJSON")
  * )
  */
-
 class Calle extends Model
 {
     use HasFactory, HasUuids;
 
-    /**
-     * La tabla asociada con el modelo.
-     *
-     * @var string
-     */
     protected $table = 'calles';
 
-    /**
-     * Los atributos que se pueden asignar masivamente.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
         'nombre',
         'shape',
+    ];
+
+    protected $casts = [
+        'shape' => 'array',
     ];
 }
