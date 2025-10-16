@@ -37,7 +37,6 @@ class Ruta extends Model
     protected function getShapeAttribute($value)
     {
         if ($value) {
-            // Convierte el valor binario a GeoJSON usando la función de PostGIS
             $geom = DB::selectOne("SELECT ST_AsGeoJSON(?) AS geojson", [$value]);
             return $geom->geojson;
         }

@@ -51,6 +51,9 @@ jobs:
             echo ">>> Activating maintenance mode..."
             php artisan down || true
 
+            echo ">>> Optimizando las rutas..."
+            php artisan optimize:clear
+
             echo ">>> Generating Swagger documentation..."
             php artisan l5-swagger:generate
 
