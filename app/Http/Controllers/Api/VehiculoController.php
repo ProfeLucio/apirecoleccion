@@ -87,49 +87,49 @@ class VehiculoController extends Controller
         return response()->json($vehiculo, 201);
     }
 
-/**
- * @OA\Get(
- * path="/api/vehiculos/{id}",
- * summary="Obtener detalles de un vehículo",
- * description="Devuelve los detalles de un vehículo específico.",
- * tags={"Vehiculos"},
- * @OA\Parameter(
- * name="id",
- * in="path",
- * required=true,
- * description="ID del vehículo",
- * @OA\Schema(type="string", format="uuid")
- * ),
- * @OA\Parameter(
- * name="perfil_id",
- * in="query", // <-- Aclarar que va en la URL
- * required=true,
- * description="ID del perfil propietario del vehículo",
- * @OA\Schema(type="string", format="uuid")
- * ),
- * @OA\Response(
- * response=200,
- * description="Detalles del vehículo",
- * @OA\JsonContent(ref="#/components/schemas/Vehiculo")
- * ),
- * @OA\Response(
- * response=403,
- * description="Acceso no autorizado",
- * @OA\JsonContent(@OA\Property(property="error", type="string", example="No autorizado para ver este vehículo."))
- * ),
- * @OA\Response(
- * response=404,
- * description="Vehículo no encontrado"
- * )
- * )
- */
+    /**
+     * @OA\Get(
+     * path="/api/vehiculos/{id}",
+     * summary="Obtener detalles de un vehículo",
+     * description="Devuelve los detalles de un vehículo específico. Requiere el perfil del propietario para autorización.",
+     * tags={"Vehiculos"},
+     * @OA\Parameter(
+     * name="id",
+     * in="path",
+     * required=true,
+     * description="ID del vehículo",
+     * @OA\Schema(type="string", format="uuid")
+     * ),
+     * @OA\Parameter(
+     * name="perfil_id",
+     * in="query",
+     * required=true,
+     * description="ID del perfil propietario para validar la autorización",
+     * @OA\Schema(type="string", format="uuid")
+     * ),
+     * @OA\Response(
+     * response=200,
+     * description="Detalles del vehículo",
+     * @OA\JsonContent(ref="#/components/schemas/Vehiculo")
+     * ),
+     * @OA\Response(
+     * response=403,
+     * description="Acceso no autorizado",
+     * @OA\JsonContent(@OA\Property(property="error", type="string", example="No autorizado para ver este vehículo."))
+     * ),
+     * @OA\Response(
+     * response=404,
+     * description="Vehiculo no encontrado"
+     * )
+     * )
+     */
     public function show(Vehiculo $vehiculo, Request $request)
     {
         $request->validate([
             'perfil_id' => 'required|uuid|exists:perfiles,id'
         ]);
 
-        // CORRECCIÓN 3: Verificación de seguridad crucial.
+        // Verificación de seguridad: Asegura que el vehículo pertenece al perfil que lo solicita.
         if ($vehiculo->perfil_id !== $request->query('perfil_id')) {
             return response()->json(['error' => 'No autorizado para ver este vehículo.'], 403);
         }
