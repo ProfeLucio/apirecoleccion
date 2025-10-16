@@ -65,6 +65,18 @@ class RecorridoController extends Controller
             'perfil_id'   => 'required|uuid|exists:perfiles,id',
         ]);
 
+        // --- MEJORA: Validación de recorrido activo ---
+        $recorridoExistente = Recorrido::where('vehiculo_id', $validatedData['vehiculo_id'])
+                                        ->where('estado', 'En Curso')
+                                        ->first();
+
+        if ($recorridoExistente) {
+            return response()->json([
+                'error' => 'El vehículo ya tiene un recorrido en curso.'
+            ], 409); // 409 Conflict es un buen código de estado para esto
+        }
+        // --- Fin de la mejora ---
+
         $recorrido = Recorrido::create([
             'ruta_id'     => $validatedData['ruta_id'],
             'vehiculo_id' => $validatedData['vehiculo_id'],

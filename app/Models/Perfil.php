@@ -11,7 +11,6 @@ use Illuminate\Database\Eloquent\Model;
  * required={"id", "nombre_perfil"},
  * @OA\Property(property="id", type="string", format="uuid", description="ID único del perfil"),
  * @OA\Property(property="nombre_perfil", type="string", description="Nombre del perfil de trabajo", example="Perfil 1"),
- * @OA\Property(property="activo", type="boolean", description="Indica si el perfil está activo"),
  * @OA\Property(property="created_at", type="string", format="date-time", description="Fecha de creación"),
  * @OA\Property(property="updated_at", type="string", format="date-time", description="Fecha de última actualización")
  * )
@@ -33,16 +32,9 @@ class Perfil extends Model
      * @var array<int, string>
      */
     protected $fillable = [
-        'nombre_perfil',
-        'activo',
+        'nombre_perfil'
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
-    protected $casts = [
-        'activo' => 'boolean',
-    ];
+
+
 }

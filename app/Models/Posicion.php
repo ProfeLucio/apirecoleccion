@@ -19,10 +19,13 @@ class Posicion extends Model
 {
     use HasFactory, HasUuids;
 
+    public $timestamps = false;
+
     protected $table = 'posiciones';
 
     protected $fillable = [
         'recorrido_id',
+        'perfil_id',
         'capturado_ts',
         'geom',
     ];
@@ -30,5 +33,20 @@ class Posicion extends Model
     public function recorrido()
     {
         return $this->belongsTo(Recorrido::class);
+    }
+
+    public function perfil()
+    {
+        return $this->belongsTo(Perfil::class);
+    }
+
+    protected function getGeomAttribute($value)
+    {
+        if ($value) {
+            // Convierte el valor binario a GeoJSON usando la función de PostGIS
+            $geom = DB::selectOne("SELECT ST_AsGeoJSON(?) AS geojson", [$value]);
+            return $geom->geojson;
+        }
+        return null;
     }
 }

@@ -1,0 +1,67 @@
+# Nombre descriptivo para el workflow, visible en la pestaña "Actions" de GitHub.
+name: Deploy API Controllers and Models
+
+# 1. DISPARADOR (Trigger)
+# El workflow se ejecutará automáticamente cada vez que hagas un push a la rama 'main'.
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    # El tipo de máquina virtual donde se ejecutarán los comandos.
+    runs-on: ubuntu-latest
+
+    # 2. PASOS (Steps)
+    # Secuencia de tareas a ejecutar en el runner.
+    steps:
+      # 2.1. Descarga el código de tu repositorio al runner.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2.2. Configura la clave SSH para permitir la conexión segura a tu servidor.
+      # Utiliza el secreto SSH_PRIVATE_KEY que ya tienes configurado en GitHub.
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # 2.3. Sube únicamente los directorios especificados a tu servidor.
+      # Usamos rsync para una transferencia rápida y eficiente de los archivos modificados.
+      - name: Deploy Models and API Controllers
+        run: |
+          # Añade la huella digital del servidor a los hosts conocidos para evitar prompts interactivos.
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+          echo ">>> Deploying Models..."
+          rsync -avz --delete ./app/Models/ ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/app/Models/
+
+          echo ">>> Deploying API Controllers..."
+          rsync -avz --delete ./app/Http/Controllers/Api/ ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/app/Http/Controllers/Api/
+
+      # 2.4. Ejecuta los comandos de optimización en el servidor remoto.
+      # Conecta por SSH y ejecuta las tareas de limpieza de caché y generación de docs.
+      - name: Run post-deploy commands
+        run: |
+          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} << 'EOF'
+            # Navega a la raíz del proyecto en el servidor.
+            cd ${{ secrets.DEPLOY_PATH }}
+
+            echo ">>> Activating maintenance mode..."
+            php artisan down || true
+
+            echo ">>> Generating Swagger documentation..."
+            php artisan l5-swagger:generate
+
+            echo ">>> Clearing caches and optimizing application..."
+            php artisan optimize:clear
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+
+            echo ">>> Deactivating maintenance mode..."
+            php artisan up
+
+            echo ">>> Deployment finished successfully!"
+          EOF

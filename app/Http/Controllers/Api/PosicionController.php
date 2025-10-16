@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Recorrido;
+use App\Models\Posicion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -44,10 +45,9 @@ class PosicionController extends Controller
             return response()->json(['error' => 'No autorizado para ver estas posiciones.'], 403);
         }
 
-        $posiciones = $recorrido->posiciones()
-            ->select('id', 'capturado_ts', DB::raw('ST_AsGeoJSON(geom) as geom'))
-            ->orderBy('capturado_ts', 'asc')
-            ->get();
+        $posiciones = Posicion::where('recorrido_id', $recorrido->id)
+        ->orderBy('capturado_ts', 'asc')
+        ->get();
 
         return response()->json(['data' => $posiciones]);
     }
@@ -91,15 +91,17 @@ class PosicionController extends Controller
             return response()->json(['error' => 'No autorizado para añadir posiciones a este recorrido.'], 403);
         }
 
+
+
+        // CORRECCIÓN 2: Devolvemos la posición creada, recargándola para obtener la forma GeoJSON
         $posicion = $recorrido->posiciones()->create([
-            'perfil_id'    => $validatedData['perfil_id'],
-            'capturado_ts' => now(),
-            'geom'         => DB::raw("ST_SetSRID(ST_MakePoint({$validatedData['lon']}, {$validatedData['lat']}), 4326)"),
+        'perfil_id'    => $validatedData['perfil_id'],
+        'capturado_ts' => now(),
+        'geom'         => DB::raw("ST_SetSRID(ST_MakePoint({$validatedData['lon']}, {$validatedData['lat']}), 4326)"),
         ]);
 
-        // Para devolver la geometría en formato GeoJSON directamente
-        $posicion->geom = json_decode(DB::selectOne('SELECT ST_AsGeoJSON(?) as geom', [$posicion->geom])->geom);
-
+        // Ya no necesitas la segunda consulta. Laravel usará el accesor al crear la respuesta JSON.
+        // Esto hace la operación más rápida (1 consulta en lugar de 2).
         return response()->json($posicion, 201);
     }
 }

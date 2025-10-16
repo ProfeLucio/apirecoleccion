@@ -13,16 +13,12 @@ class Recorrido extends Model
     protected $fillable = [
         'ruta_id',
         'vehiculo_id',
-        'conductor_id',
+        'perfil_id',
         'ts_inicio',
         'ts_fin',
         'estado',
     ];
 
-    public function conductor()
-    {
-        return $this->belongsTo(User::class, 'conductor_id');
-    }
 
     public function vehiculo()
     {
@@ -34,8 +30,9 @@ class Recorrido extends Model
         return $this->belongsTo(Ruta::class);
     }
 
-    public function posiciones()
+    public function perfil()
     {
-        return $this->hasMany(Posicion::class);
+        return $this->belongsTo(Perfil::class);
     }
+
 }

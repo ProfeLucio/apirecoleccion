@@ -31,12 +31,16 @@ class Ruta extends Model
 
     public function calles()
     {
-        // Una ruta está compuesta por muchas calles, a través de la tabla pivote
         return $this->belongsToMany(Calle::class, 'ruta_calle')->withPivot('orden');
     }
 
-    public function horarios()
+    protected function getShapeAttribute($value)
     {
-        return $this->hasMany(Horario::class);
+        if ($value) {
+            // Convierte el valor binario a GeoJSON usando la función de PostGIS
+            $geom = DB::selectOne("SELECT ST_AsGeoJSON(?) AS geojson", [$value]);
+            return $geom->geojson;
+        }
+        return null;
     }
 }
