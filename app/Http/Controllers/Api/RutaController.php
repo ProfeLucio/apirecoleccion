@@ -108,7 +108,6 @@ public function store(Request $request)
             'shape'       => DB::raw("ST_GeomFromGeoJSON('{$validatedData['shape']}')")
         ]);
 
-        // 2. (Opcional) Si se enviaron los IDs de las calles, los asociamos
         // en la tabla pivote solo como referencia.
         if (!empty($validatedData['calles_ids'])) {
             $orden = 0;
