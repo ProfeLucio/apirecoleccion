@@ -166,12 +166,10 @@ public function store(Request $request)
             'perfil_id' => 'required|uuid|exists:perfiles,id'
         ]);
 
-        // CORRECCIÓN 2: Verificación de seguridad crucial.
         if ($ruta->perfil_id !== $request->query('perfil_id')) {
             return response()->json(['error' => 'No autorizado para ver esta ruta.'], 403);
         }
 
-        // CORRECCIÓN 3: Buscamos de nuevo el registro para aplicar la conversión ST_AsGeoJSON
         $rutaConGeometria = Ruta::select(
             'id',
             'perfil_id',
