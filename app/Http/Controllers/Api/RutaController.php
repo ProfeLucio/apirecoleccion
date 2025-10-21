@@ -94,8 +94,7 @@ public function store(Request $request)
         'nombre_ruta' => 'required|string|max:255',
         'perfil_id'   => 'required|uuid|exists:perfiles,id',
         'shape'       => 'required|json', // Recibimos la geometría como un string JSON
-        'calles_ids'  => 'nullable|array',
-        'calles_ids.*'=> 'uuid|exists:calles,id'
+        'calles_ids'  => 'nullable|array'
     ]);
 
     $ruta = null;
