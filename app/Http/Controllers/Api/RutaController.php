@@ -50,7 +50,6 @@ class RutaController extends Controller
             'perfil_id',
             'nombre_ruta',
             'color_hex',
-            // CORRECCIÓN 1: Devolver la geometría en formato GeoJSON
            // DB::raw('ST_AsGeoJSON(shape) as shape')
         )
         ->where('perfil_id', $request->query('perfil_id'))
