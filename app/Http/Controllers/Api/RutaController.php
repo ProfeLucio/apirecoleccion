@@ -135,22 +135,19 @@ class RutaController extends Controller
             }
             else {
                 // construir GeoJSON a partir de calles_ids
-                if (!empty($validated['calles_ids'])) {
-                    $calles = Calle::whereIn('id', $validated['calles_ids'])->get();
-                    $features = [];
-                    foreach ($calles as $calle) {
-                        $features['coordinates'][] = json_decode($calle->shape->coordinates, true);
-                    }
-                    $geojsonArray = [
-                        'type' => 'LineString',
-                        'coordinates' => $features['coordinates'],
-                    ];
-                    $geojson = json_encode($geojsonArray, JSON_UNESCAPED_SLASHES);
-                } else {
+                $merged = DB::table('calles')
+                    ->whereIn('id', $validated['calles_ids'])
+                    // LineMerge para intentar unir segmentos contiguos
+                    ->select(DB::raw('ST_AsGeoJSON(ST_LineMerge(ST_Union(shape))) AS geom_json'))
+                    ->first();
+
+                if (!$merged || $merged->geom_json === null) {
                     return response()->json([
-                        'message' => 'Debe proporcionar shape o calles_ids para definir la geometría de la ruta.'
-                    ], Response::HTTP_UNPROCESSABLE_ENTITY);
+                        'message' => 'No se pudo generar geometría válida a partir de las calles seleccionadas.'
+                    ], 422);
                 }
+
+                $geojson = $merged->geom_json;
             }
 
             // Crear la ruta
