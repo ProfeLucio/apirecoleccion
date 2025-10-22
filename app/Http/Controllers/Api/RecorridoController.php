@@ -40,7 +40,7 @@ class RecorridoController extends Controller
 
     /**
      * @OA\Post(
-     * path="/api/recorridos",
+     * path="/api/recorridos/iniciar",
      * summary="Iniciar un nuevo recorrido",
      * description="Crea un nuevo registro de recorrido asociado a un perfil.",
      * tags={"Recorridos"},
