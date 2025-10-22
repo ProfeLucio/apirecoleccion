@@ -117,7 +117,7 @@ class PosicionController extends Controller
             'recorrido_id'  => $posicion->recorrido_id,
             'perfil_id'     => $posicion->perfil_id,
             'capturado_ts'  => $posicion->capturado_ts,
-            'geom'          => DB::selectOne("SELECT ST_AsGeoJSON(?) AS geojson", [$posicion->geom])->geojson,
+            //'geom'          => DB::selectOne("SELECT ST_AsGeoJSON(?) AS geojson", [$posicion->geom])->geojson,
         ];
         /*
         // 4. Formatear la respuesta (para incluir el GeoJSON)
