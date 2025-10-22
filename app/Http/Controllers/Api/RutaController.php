@@ -122,56 +122,39 @@ class RutaController extends Controller
  * @OA\Response(response=422, description="Validación fallida: Se debe enviar 'shape' o 'calles_ids'.")
  * )
  */
-    public function store(Request $request)
+protected function checkPostgis()
     {
-        // 1. VALIDACIÓN CONDICIONAL (Exclusión Mutua)
-        $validatedData = $request->validate([
-            'nombre_ruta' => 'required|string|max:255',
-            'perfil_id'   => 'required|uuid|exists:perfiles,id',
+        try {
+            // Ejecuta una consulta simple para obtener la versión de PostGIS
+            $result = DB::selectOne('SELECT PostGIS_Version() as version');
 
-            // Requisito 1: Modo Shape (Cadena GeoJSON)
-            'shape'       => 'required_without:calles_ids|nullable|string|json',
+            if (empty($result) || !isset($result->version)) {
+                throw new \Exception('PostGIS no devolvió una versión válida.');
+            }
 
-            // Requisito 2: Modo Calles (Array de IDs)
-            'calles_ids'  => 'required_without:shape|nullable|array|min:1',
-            'calles_ids.*'=> 'uuid|exists:calles,id',
-        ]);
+            // Opcional: Podrías loggear la versión o simplemente retornar true
+            return true;
 
-        $caso = '';
+        } catch (\Exception $e) {
+            // Si hay una excepción (ej. "function PostGIS_Version() does not exist"),
+            // significa que PostGIS no está cargado o la conexión falló.
+            // Registrá el error real para el desarrollador.
+            \Log::error("Fallo la verificación de PostGIS: " . $e->getMessage());
 
-        // 2. DETERMINAR EL CASO
-
-        // =======================================================
-        // CASO A: Modo Shape (Geometría Directa)
-        // =======================================================
-        if (isset($validatedData['shape']) && $validatedData['shape'] !== null) {
-            $caso = 'Modo Shape (Geometría Directa)';
-
-            // Opcional: Decodificar el JSON de prueba para ver si es válido
-            $validatedData['shape_parsed'] = json_decode($validatedData['shape']);
+            // Devolvemos una respuesta de error para el cliente
+            abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'Error de servidor: La extensión geoespacial (PostGIS) no está operativa.');
         }
-
-        // =======================================================
-        // CASO B: Modo Calles (Unión de Geometrías)
-        // =======================================================
-        elseif (isset($validatedData['calles_ids']) && count($validatedData['calles_ids']) > 0) {
-            $caso = 'Modo Calles (Unión de Geometrías)';
-
-            // Si el modo Calles está activo, aseguramos que la validación de calles pasó
-            // El campo 'calles_ids.*' garantiza que los IDs son válidos.
-        }
-        else {
-            // Esto no debería suceder gracias a required_without
-             $caso = 'ERROR: No se activó ningún caso (Validación fallida)';
-        }
-        return response()->json([
-            'status' => 'OK - Validación Exitosa',
-            'caso_activado' => $caso,
-            'data_recibida' => $validatedData,
-            'notas' => 'La lógica de la base de datos (DB::transaction) fue omitida.'
-        ], 200);
     }
 
+    // El método store real
+    public function store(Request $request)
+    {
+        // 1. Verificar la funcionalidad de PostGIS antes de la lógica Geoespacial
+        $this->checkPostgis(); // Detendrá la ejecución si PostGIS falla.
+
+        // ... (El resto de la lógica del método store ajustado)
+        // ... Aquí iría el código con el DB::transaction, etc.
+    }
 /**
      * @OA\Get(
      * path="/api/rutas/{id}",
