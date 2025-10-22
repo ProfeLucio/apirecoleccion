@@ -60,66 +60,56 @@ class RutaController extends Controller
 
 /**
  * @OA\Post(
- * path="/api/rutas",
- * summary="Crear una nueva ruta",
- * description="Crea una ruta a partir de una geometría GeoJSON o uniendo las geometrías de una lista de IDs de calles. Es obligatorio enviar uno de los dos: 'shape' O 'calles_ids'.",
- * tags={"Rutas"},
- * @OA\RequestBody(
- * required=true,
- * @OA\JsonContent(
- * required={"nombre_ruta", "perfil_id"},
- * @OA\Schema(
- * allOf={
- * @OA\Schema(
- * @OA\Property(property="nombre_ruta", type="string", example="Ruta de Mantenimiento B"),
- * @OA\Property(property="perfil_id", type="string", format="uuid", example="18851282-1a08-42b7-9384-243cc2ead349")
- * ),
- * @OA\Schema(
- * oneOf={
- * // OPCIÓN 1: Modo SHAPE (Geometría directa GeoJSON)
- * @OA\Schema(
- * required={"shape"},
- * @OA\Property(
- * property="shape",
- * type="string",
- * description="Cadena GeoJSON LineString o MultiLineString. Obligatorio si 'calles_ids' está ausente.",
- * // Usamos comillas dobles para que el parser no se confunda con las comillas simples de PHP
- * example="""{"type":"LineString","coordinates":[[-77.078,3.889],[-77.060,3.882]]}"""
- * ),
- * @OA\Property(
- * property="calles_ids",
- * type="array",
- * nullable=true,
- * description="Debe ser nulo o omitido en Modo Shape.",
- * @OA\Items(type="string", format="uuid")
- * )
- * ),
- * // OPCIÓN 2: Modo CALLES_IDS (Unión de geometrías)
- * @OA\Schema(
- * required={"calles_ids"},
- * @OA\Property(
- * property="shape",
- * type="string",
- * nullable=true,
- * description="Debe ser nulo o omitido en Modo Calles."
- * ),
- * @OA\Property(
- * property="calles_ids",
- * type="array",
- * description="Lista de UUIDs de las calles a unir para formar la ruta. Obligatorio si 'shape' está ausente.",
- * @OA\Items(type="string", format="uuid", example="a7774b8d-b4f5-40d4-b303-bc334efac4a0"),
- * minItems=1
- * )
- * )
- * }
- * )
- * }
- * )
- * )
- * ),
- * @OA\Response(response=201, description="Ruta creada exitosamente."),
- * @OA\Response(response=422, description="Validación fallida: Faltan campos obligatorios o los IDs no existen."),
- * @OA\Response(response=500, description="Error de servidor: Fallo en la transacción o en la manipulación de PostGIS.")
+ *   path="/api/rutas",
+ *   summary="Crear una nueva ruta",
+ *   description="Crea una ruta a partir de una geometría GeoJSON (cadena) o uniendo las geometrías de una lista de IDs de calles. Debes enviar uno de los dos: 'shape' O 'calles_ids'.",
+ *   tags={"Rutas"},
+ *   @OA\RequestBody(
+ *     required=true,
+ *     @OA\JsonContent(
+ *       oneOf={
+ *         @OA\Schema(
+ *           required={"nombre_ruta","perfil_id","shape"},
+ *           @OA\Property(property="nombre_ruta", type="string", example="Ruta de Mantenimiento B"),
+ *           @OA\Property(property="perfil_id", type="string", format="uuid", example="18851282-1a08-42b7-9384-243cc2ead349"),
+ *           @OA\Property(
+ *             property="shape",
+ *             type="string",
+ *             description="Cadena GeoJSON (LineString o MultiLineString). Obligatorio si 'calles_ids' está ausente.",
+ *             example="{\"type\":\"LineString\",\"coordinates\":[[-77.078,3.889],[-77.060,3.882]]}"
+ *           ),
+ *           @OA\Property(
+ *             property="calles_ids",
+ *             type="array",
+ *             nullable=true,
+ *             description="Debe ser nulo u omitido cuando se usa 'shape'.",
+ *             @OA\Items(type="string", format="uuid")
+ *           )
+ *         ),
+ *         @OA\Schema(
+ *           required={"nombre_ruta","perfil_id","calles_ids"},
+ *           @OA\Property(property="nombre_ruta", type="string", example="Ruta con unión de calles"),
+ *           @OA\Property(property="perfil_id", type="string", format="uuid", example="18851282-1a08-42b7-9384-243cc2ead349"),
+ *           @OA\Property(
+ *             property="shape",
+ *             type="string",
+ *             nullable=true,
+ *             description="Debe ser nulo u omitido cuando se usa 'calles_ids'."
+ *           ),
+ *           @OA\Property(
+ *             property="calles_ids",
+ *             type="array",
+ *             description="IDs de calles a unir. Obligatorio si 'shape' está ausente.",
+ *             minItems=1,
+ *             @OA\Items(type="string", format="uuid", example="a7774b8d-b4f5-40d4-b303-bc334efac4a0")
+ *           )
+ *         )
+ *       }
+ *     )
+ *   ),
+ *   @OA\Response(response=201, description="Ruta creada exitosamente."),
+ *   @OA\Response(response=422, description="Validación fallida."),
+ *   @OA\Response(response=500, description="Error de servidor.")
  * )
  */
 public function store(Request $request)
