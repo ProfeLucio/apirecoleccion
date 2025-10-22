@@ -37,7 +37,7 @@ Route::apiResource('vehiculos', VehiculoController::class);
 Route::apiResource('calles', CalleController::class)->only(['index', 'show']);
 
 // CRUD para Rutas Lógicas (creadas por el admin)
-Route::apiResource('rutas', RutaController::class);
+Route::apiResource('rutas', RutaController::class)->only(['index', 'show', 'store']);
 
 // CRUD para Horarios (anidado dentro de las rutas)
 //Route::apiResource('rutas.horarios', HorarioController::class)->shallow();
