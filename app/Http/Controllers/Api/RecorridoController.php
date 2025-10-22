@@ -31,7 +31,6 @@ class RecorridoController extends Controller
         ]);
 
         $recorridos = Recorrido::where('perfil_id', $request->query('perfil_id'))
-            ->with(['ruta', 'vehiculo']) // Carga relaciones para más contexto
             ->orderBy('ts_inicio', 'desc')
             ->get();
 
