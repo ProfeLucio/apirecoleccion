@@ -59,6 +59,28 @@ class RutaController extends Controller
         return response()->json(['data' => $rutas]);
     }
 
+    /**
+     * @OA\Post(
+     *    path="/api/rutas",
+     *   summary="Crear una nueva ruta",
+     *   description="Crea una nueva ruta lógica ya sea a partir de una geometría GeoJSON directa o un conjunto de calles existentes.",
+     *  tags={"Rutas"},
+     *  @OA\RequestBody(
+     *    required=true,
+     *   @OA\JsonContent(
+     *    required={"nombre_ruta", "perfil_id"},
+     *   @OA\Property(property="nombre_ruta", type="string", example="Ruta Centro"),
+     *  @OA\Property(property="perfil_id", type="string", format="uuid", example="a1b2c3d4-e5f6-7890-abcd-1234567890ab"),
+     *  @OA\Property(property="shape", type="string", description="Geometría de la ruta en formato GeoJSON", example="{ \"type\": \"LineString\", \"coordinates\": [ [ -74.00597, 40.71278 ], [ -73.935242, 40.730610 ] ] }"),
+     *  @OA\Property(
+     *   property="calles_ids",
+     *  type="array",
+     *  description="Array de UUIDs de calles para construir la ruta a partir de ellas",
+     *  @OA\Items(type="string", format="uuid", example="d4c3b2a1-6f5e-0987-dcba-0987654321fe")
+     * )
+     * )
+     * ),
+     */
     public function store(Request $request)
     {
         // 1. Validar los datos
