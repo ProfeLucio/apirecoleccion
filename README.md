@@ -126,5 +126,5 @@ El `UUID` del recorrido se pasa en la **URL**.
 
 ---
 
-📘 **Autor:** Equipo de Desarrollo Geo-Recolección  
+📘 **Autor:** Gonzalo Andrés Lucio López  
 📅 **Última actualización:** Octubre 2025
