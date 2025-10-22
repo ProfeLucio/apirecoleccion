@@ -122,92 +122,89 @@ class RutaController extends Controller
  * @OA\Response(response=422, description="Validación fallida: Se debe enviar 'shape' o 'calles_ids'.")
  * )
  */
-    public function store(Request $request)
-    {
-        // ... (Tu función checkPostgis() iría aquí, pero la omitimos en el código final)
+public function store(Request $request)
+{
+    $validated = $request->validate([
+        'nombre_ruta' => 'required|string|max:255',
+        'perfil_id'   => 'required|uuid|exists:perfiles,id',
+        'shape'       => 'required_without:calles_ids|nullable|string|json',
+        'calles_ids'  => 'required_without:shape|nullable|array|min:1',
+        'calles_ids.*'=> 'uuid|exists:calles,id',
+    ]);
 
-        // 1. VALIDACIÓN
-        $validatedData = $request->validate([
-            'nombre_ruta' => 'required|string|max:255',
-            'perfil_id'   => 'required|uuid|exists:perfiles,id',
-            'shape'       => 'required_without:calles_ids|nullable|string|json',
-            'calles_ids'  => 'required_without:shape|nullable|array|min:1',
-            'calles_ids.*'=> 'uuid|exists:calles,id',
-        ]);
+    try {
+        $rutaId = null;
 
-        $ruta = null;
-        $dataToCreate = [
-            'nombre_ruta' => $validatedData['nombre_ruta'],
-            'perfil_id'   => $validatedData['perfil_id'],
-        ];
-        $shapeGeometry = null;
+        DB::transaction(function () use ($validated, &$rutaId) {
 
-        DB::transaction(function () use ($validatedData, $dataToCreate, &$ruta, &$shapeGeometry) {
+            $shapeExpr = null;
 
-            // =======================================================
-            // CASO A: Modo Shape (Geometría Directa)
-            // =======================================================
-            if (isset($validatedData['shape']) && $validatedData['shape'] !== null) {
-
-                // Preparar la geometría GeoJSON
-                $shapeGeometry = DB::raw("ST_GeomFromGeoJSON(?)", [$validatedData['shape']]);
-
+            // Caso A: GeoJSON directo (string)
+            if (!empty($validated['shape'])) {
+                $geojson = str_replace("'", "''", $validated['shape']); // escapar comillas simples
+                $shapeExpr = DB::raw("ST_SetSRID(ST_GeomFromGeoJSON('{$geojson}'), 4326)");
             }
-
-            // =======================================================
-            // CASO B: Modo Calles (Unión de Geometrías)
-            // =======================================================
-            elseif (isset($validatedData['calles_ids']) && count($validatedData['calles_ids']) > 0) {
-
-                // 1. Obtener la geometría unida (WKT) de la BD
-                $mergedShapeResult = DB::table('calles')
-                    ->whereIn('id', $validatedData['calles_ids'])
-                    ->select(DB::raw('ST_AsText(ST_Union(shape)) as merged_shape'))
+            // Caso B: unión de calles
+            elseif (!empty($validated['calles_ids'])) {
+                $merged = DB::table('calles')
+                    ->whereIn('id', $validated['calles_ids'])
+                    ->select(DB::raw('ST_AsText(ST_Union(shape)) AS merged_shape'))
                     ->first();
 
-                if (!$mergedShapeResult || $mergedShapeResult->merged_shape === null) {
+                if (!$merged || $merged->merged_shape === null) {
                     abort(Response::HTTP_UNPROCESSABLE_ENTITY, 'No se pudo generar una geometría válida a partir de las calles seleccionadas.');
                 }
-
-                $geometriaUnidaWKT = $mergedShapeResult->merged_shape;
-
-                // 2. Preparar la geometría WKT
-                $shapeGeometry = DB::raw("ST_GeomFromText(?, 4326)", [$geometriaUnidaWKT]);
-
+                $wkt = str_replace("'", "''", $merged->merged_shape);
+                $shapeExpr = DB::raw("ST_SetSRID(ST_GeomFromText('{$wkt}', 4326), 4326)");
             }
 
-            // =======================================================
-            // 2. CREACIÓN ÚNICA DE LA RUTA (Se ejecuta solo si $shapeGeometry tiene valor)
-            // =======================================================
-            if ($shapeGeometry === null) {
-                // Este punto no debería alcanzarse si la validación es correcta
+            if ($shapeExpr === null) {
                 abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'La geometría de la ruta no fue procesada.');
             }
 
-            $ruta = Ruta::create(array_merge($dataToCreate, [
-                // El error 500 está aquí si 'shape' no es fillable
-                'shape' => $shapeGeometry,
-            ]));
+            $ruta = Ruta::create([
+                'nombre_ruta' => $validated['nombre_ruta'],
+                'perfil_id'   => $validated['perfil_id'],
+                'shape'       => $shapeExpr,
+            ]);
 
-            // =======================================================
-            // 3. ADJUNTAR CALLES (Solo si estamos en el Caso B)
-            // =======================================================
-            if (isset($validatedData['calles_ids']) && count($validatedData['calles_ids']) > 0) {
+            // Adjuntar calles si vinieron
+            if (!empty($validated['calles_ids'])) {
                 $callesToAttach = [];
                 $orden = 0;
-
-                foreach ($validatedData['calles_ids'] as $calleId) {
+                foreach ($validated['calles_ids'] as $calleId) {
                     $callesToAttach[$calleId] = ['orden' => $orden++];
                 }
-
                 $ruta->calles()->attach($callesToAttach);
             }
 
+            $rutaId = $ruta->id;
         });
 
-        // 4. Devolver la ruta creada
-        return response()->json($ruta->load('calles'), Response::HTTP_CREATED);
+        // Re-cargar con GeoJSON computado para evitar serializar geometry crudo
+        $ruta = Ruta::select('*')
+            ->addSelect(DB::raw('ST_AsGeoJSON(shape) AS shape_geojson'))
+            ->with('calles')
+            ->findOrFail($rutaId);
+
+        // Opcional: ocultar el campo shape en la respuesta si no lo quieres
+        unset($ruta->shape);
+
+        return response()->json($ruta, Response::HTTP_CREATED);
+
+    } catch (\Throwable $e) {
+        Log::error('Error creando ruta', [
+            'msg' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+        ]);
+        // Mensaje amigable (el detalle queda en el log)
+        return response()->json([
+            'message' => 'No se pudo crear la ruta.',
+            'error'   => app()->hasDebugMode() && config('app.debug') ? $e->getMessage() : null,
+        ], 500);
     }
+}
 
 /**
      * @OA\Get(
