@@ -101,36 +101,11 @@ class RutaController extends Controller
     public function store(Request $request)
     {
         // 0) log de lo que está llegando (para confirmar tipos)
-        Log::info('POST /api/rutas payload', [
-            'headers' => $request->headers->all(),
-            'body'    => $request->all(),
-        ]);
 
         try {
             // 1) validación SIN lanzar excepción automática
-            $validator = Validator::make($request->all(), [
-                'nombre_ruta' => 'required|string|max:255',
-                'perfil_id'   => 'required|uuid|exists:perfiles,id',
-                // aceptar objeto o string; normalizamos luego
-                'shape'       => 'required_without:calles_ids|nullable',
-                'calles_ids'  => 'required_without:shape|nullable|array|min:1',
-                'calles_ids.*'=> 'uuid|exists:calles,id',
-            ]);
 
-            if ($validator->fails()) {
-                Log::warning('Validación rutas.store FALLÓ', [
-                    'errors' => $validator->errors()->toArray(),
-                ]);
-
-                return response()->json([
-                    'message' => 'Validación fallida',
-                    'errors'  => $validator->errors(),
-                ], Response::HTTP_UNPROCESSABLE_ENTITY);
-            }
-
-            $data = $validator->validated();
-            // … (tu lógica de guardado)
-            return response()->json(['ok' => true, 'data' => $data], 201);
+            return response()->json(['ok' => true, 'data' => $request->all()], 201);
 
         } catch (\Throwable $e) {
             // 2) si el 500 es *realmente* dentro de Validator::make(), lo veremos aquí
