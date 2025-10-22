@@ -125,6 +125,9 @@ class RutaController extends Controller
             $ruta->nombre_ruta = $validatedData['nombre_ruta'];
             $ruta->perfil_id = $validatedData['perfil_id'];
             // Manejar shape si se proporciona
+            if (empty($validatedData['shape']) && empty($validatedData['calles_ids'])) {
+                return response()->json(['message' => "Se requiere 'shape' o 'calles_ids'."], 422);
+            }
             if (!is_null($validatedData['shape'])) {
                 $shapeJson = is_string($validatedData['shape']) ? $validatedData['shape'] : json_encode($validatedData['shape']);
                 $ruta->shape = DB::raw("ST_GeomFromGeoJSON('{$shapeJson}')");
