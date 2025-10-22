@@ -124,21 +124,7 @@ class RutaController extends Controller
             $ruta = new Ruta();
             $ruta->nombre_ruta = $validatedData['nombre_ruta'];
             $ruta->perfil_id = $validatedData['perfil_id'];
-            if (!is_null($validatedData['shape'])) {
-                // Asignar la geometría directamente desde GeoJSON
-                $geojson = is_string($validatedData['shape']) ? $validatedData['shape'] : json_encode($validatedData['shape']);
-                $ruta->shape = DB::raw("ST_GeomFromGeoJSON('{$geojson}')");
-            }
-           // $ruta->save();
-            // Si se proporcionaron 'calles_ids', asociarlas a la ruta
-            if (!is_null($validatedData['calles_ids'])) {
-                $orden = 1;
-                foreach ($validatedData['calles_ids'] as $calleId) {
-                    $ruta->calles()->attach($calleId, ['orden' => $orden
-                    ]);
-                    $orden++;
-                }
-            }
+
 
             return response()->json(['ok' => true, 'data' => $ruta], 201);
 
