@@ -106,32 +106,40 @@ class RutaController extends Controller
             // 1) validación SIN lanzar excepción automática
 
 
-            $validatedData = $request->validate([
+            $validated = $request->validate([
                 'nombre_ruta' => 'required|string|max:255',
                 'perfil_id'   => 'required|uuid|exists:perfiles,id',
-                'shape'       => 'nullable',
-                'calles_ids'  => 'nullable|array',
+                'shape'       => 'nullable',          // objeto o string (normalizamos abajo)
+                'calles_ids'  => 'nullable|array|min:1',
                 'calles_ids.*'=> 'uuid|exists:calles,id',
             ]);
 
-            // Validar que al menos uno de 'shape' o 'calles_ids' esté presente
-            if (is_null($validatedData['shape']) && is_null($validatedData['calles_ids'])) {
-                return response()->json([
-                    'message' => "Se requiere al menos 'shape' o 'calles_ids'."
-                ], 422);
+            $geojson = null;
+            if (!empty($validated['shape'])) {
+                if (is_array($validated['shape'])) {
+                    $geojson = json_encode($validated['shape'], JSON_UNESCAPED_SLASHES);
+                } elseif (is_string($validated['shape'])) {
+                    // opcional: validar que sea JSON válido
+                    json_decode($validated['shape'], true);
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        return response()->json([
+                            'message' => 'shape debe ser un JSON válido (objeto o string).'
+                        ], Response::HTTP_UNPROCESSABLE_ENTITY);
+                    }
+                    $geojson = $validated['shape'];
+                } else {
+                    return response()->json([
+                        'message' => 'shape debe ser un objeto o una cadena JSON.'
+                    ], Response::HTTP_UNPROCESSABLE_ENTITY);
+                }
             }
+
             // Crear la ruta
             $ruta = new Ruta();
-            $ruta->nombre_ruta = $validatedData['nombre_ruta'];
-            $ruta->perfil_id = $validatedData['perfil_id'];
+            $ruta->nombre_ruta = $validated['nombre_ruta'];
+            $ruta->perfil_id = $validated['perfil_id'];
+            $ruta->shape = $geojson;
             // Manejar shape si se proporciona
-            if (empty($validatedData['shape']) && empty($validatedData['calles_ids'])) {
-                return response()->json(['message' => "Se requiere 'shape' o 'calles_ids'."], 422);
-            }
-            if (!is_null($validatedData['shape'])) {
-                $shapeJson = is_string($validatedData['shape']) ? $validatedData['shape'] : json_encode($validatedData['shape']);
-                $ruta->shape = DB::raw("ST_GeomFromGeoJSON('{$shapeJson}')");
-            }
             //$ruta->save();
 
 
