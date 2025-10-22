@@ -37,12 +37,5 @@ class Ruta extends Model
         return $this->belongsToMany(Calle::class, 'ruta_calle')->withPivot('orden');
     }
 
-    protected function getShapeAttribute($value)
-    {
-        if ($value) {
-            $geom = DB::selectOne("SELECT ST_AsGeoJSON(?) AS geojson", [$value]);
-            return $geom->geojson;
-        }
-        return null;
-    }
+
 }
