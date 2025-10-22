@@ -7,6 +7,7 @@ use App\Models\Ruta;
 use App\Models\Calle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use OpenApi\Annotations as OA;
 
 class RutaController extends Controller
 {
