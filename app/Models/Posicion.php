@@ -43,13 +43,5 @@ class Posicion extends Model
         return $this->belongsTo(Perfil::class);
     }
 
-    protected function getGeomAttribute($value)
-    {
-        if ($value) {
-            // Convierte el valor binario a GeoJSON usando la función de PostGIS
-            $geom = DB::selectOne("SELECT ST_AsGeoJSON(?) AS geojson", [$value]);
-            return $geom->geojson;
-        }
-        return null;
-    }
+
 }
