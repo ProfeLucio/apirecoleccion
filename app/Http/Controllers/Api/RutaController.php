@@ -59,44 +59,13 @@ class RutaController extends Controller
         return response()->json(['data' => $rutas]);
     }
 
-/**
- * @OA\Post(
- *   path="/api/rutas",
- *   tags={"Rutas"},
- *   summary="Crear una nueva ruta",
- *   description="Envía shape (GeoJSON como cadena) O calles_ids (array de UUIDs). Debe venir uno de los dos.",
- *   @OA\RequestBody(
- *     required=true,
- *     @OA\JsonContent(
- *       required={"nombre_ruta","perfil_id"},
- *       @OA\Property(property="nombre_ruta", type="string", example="Ruta Solo Geometría"),
- *       @OA\Property(property="perfil_id", type="string", format="uuid", example="18851282-1a08-42b7-9384-243cc2ead349"),
- *       @OA\Property(
- *         property="shape",
- *         type="string",
- *         nullable=true,
- *         description="Cadena GeoJSON (LineString o MultiLineString). Obligatorio si calles_ids está ausente.",
- *       ),
- *       @OA\Property(
- *         property="calles_ids",
- *         type="array",
- *         nullable=true,
- *         description="Lista de UUIDs de calles. Obligatorio si shape está ausente.",
- *         @OA\Items(type="string", format="uuid")
- *       )
- *     )
- *   ),
- *   @OA\Response(response=201, description="Ruta creada exitosamente."),
- *   @OA\Response(response=422, description="Validación fallida."),
- *   @OA\Response(response=500, description="Error de servidor.")
- * )
- */
 public function store(Request $request)
 {
+    // Aceptar shape como array o string
     $validated = $request->validate([
         'nombre_ruta' => 'required|string|max:255',
         'perfil_id'   => 'required|uuid|exists:perfiles,id',
-        'shape'       => 'required_without:calles_ids|nullable|string|json',
+        'shape'       => 'required_without:calles_ids|nullable',   // <- ya no string|json
         'calles_ids'  => 'required_without:shape|nullable|array|min:1',
         'calles_ids.*'=> 'uuid|exists:calles,id',
     ]);
@@ -106,14 +75,31 @@ public function store(Request $request)
 
         DB::transaction(function () use ($validated, &$rutaId) {
 
-            $shapeExpr = null;
+            $ruta = Ruta::create([
+                'nombre_ruta' => $validated['nombre_ruta'],
+                'perfil_id'   => $validated['perfil_id'],
+                // ¡NO poner 'shape' aquí!
+            ]);
 
-            // Caso A: GeoJSON directo (string)
+            // ----- Caso A: viene shape (objeto o string) -----
             if (!empty($validated['shape'])) {
-                $geojson = str_replace("'", "''", $validated['shape']); // escapar comillas simples
-                $shapeExpr = DB::raw("ST_SetSRID(ST_GeomFromGeoJSON('{$geojson}'), 4326)");
+                // Normalizar a string JSON
+                if (is_array($validated['shape'])) {
+                    $geojson = json_encode($validated['shape'], JSON_UNESCAPED_SLASHES);
+                } else {
+                    $geojson = (string) $validated['shape'];
+                }
+
+                // Actualizar shape con bindings seguros
+                DB::update(
+                    "UPDATE rutas
+                     SET shape = ST_SetSRID(ST_GeomFromGeoJSON(?), 4326)
+                     WHERE id = ?",
+                    [$geojson, $ruta->id]
+                );
             }
-            // Caso B: unión de calles
+
+            // ----- Caso B: viene calles_ids (unión) -----
             elseif (!empty($validated['calles_ids'])) {
                 $merged = DB::table('calles')
                     ->whereIn('id', $validated['calles_ids'])
@@ -123,22 +109,15 @@ public function store(Request $request)
                 if (!$merged || $merged->merged_shape === null) {
                     abort(Response::HTTP_UNPROCESSABLE_ENTITY, 'No se pudo generar una geometría válida a partir de las calles seleccionadas.');
                 }
-                $wkt = str_replace("'", "''", $merged->merged_shape);
-                $shapeExpr = DB::raw("ST_SetSRID(ST_GeomFromText('{$wkt}', 4326), 4326)");
-            }
 
-            if ($shapeExpr === null) {
-                abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'La geometría de la ruta no fue procesada.');
-            }
+                DB::update(
+                    "UPDATE rutas
+                     SET shape = ST_SetSRID(ST_GeomFromText(?, 4326), 4326)
+                     WHERE id = ?",
+                    [$merged->merged_shape, $ruta->id]
+                );
 
-            $ruta = Ruta::create([
-                'nombre_ruta' => $validated['nombre_ruta'],
-                'perfil_id'   => $validated['perfil_id'],
-                'shape'       => $shapeExpr,
-            ]);
-
-            // Adjuntar calles si vinieron
-            if (!empty($validated['calles_ids'])) {
+                // guardar orden en pivote si aplica
                 $callesToAttach = [];
                 $orden = 0;
                 foreach ($validated['calles_ids'] as $calleId) {
@@ -150,27 +129,24 @@ public function store(Request $request)
             $rutaId = $ruta->id;
         });
 
-        // Re-cargar con GeoJSON computado para evitar serializar geometry crudo
-        $ruta = Ruta::select('*')
+        // Responder con GeoJSON calculado (evitar serializar geometry crudo)
+        $ruta = Ruta::select('id','perfil_id','nombre_ruta','color_hex')
             ->addSelect(DB::raw('ST_AsGeoJSON(shape) AS shape_geojson'))
             ->with('calles')
             ->findOrFail($rutaId);
-
-        // Opcional: ocultar el campo shape en la respuesta si no lo quieres
-        unset($ruta->shape);
 
         return response()->json($ruta, Response::HTTP_CREATED);
 
     } catch (\Throwable $e) {
         Log::error('Error creando ruta', [
-            'msg' => $e->getMessage(),
+            'msg'  => $e->getMessage(),
             'file' => $e->getFile(),
             'line' => $e->getLine(),
         ]);
-        // Mensaje amigable (el detalle queda en el log)
+
         return response()->json([
             'message' => 'No se pudo crear la ruta.',
-            'error'   => app()->hasDebugMode() && config('app.debug') ? $e->getMessage() : null,
+            'error'   => config('app.debug') ? $e->getMessage() : null,
         ], 500);
     }
 }
