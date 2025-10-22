@@ -122,6 +122,26 @@ class RutaController extends Controller
  * @OA\Response(response=422, description="Validación fallida: Se debe enviar 'shape' o 'calles_ids'.")
  * )
  */
+protected function checkPostgis()
+    {
+        try {
+            // ... (Tu código checkPostgis permanece igual)
+            $result = DB::selectOne('SELECT PostGIS_Version() as version');
+
+            if (empty($result) || !isset($result->version)) {
+                throw new \Exception('PostGIS no devolvió una versión válida.');
+            }
+
+            // Retorna la versión, que es una cadena.
+            return $result->version;
+
+        } catch (\Exception $e) {
+            \Log::error("Fallo la verificación de PostGIS: " . $e->getMessage());
+            // Si falla, aborta la ejecución con error 500
+            abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'Error de servidor: La extensión geoespacial (PostGIS) no está operativa.');
+        }
+    }
+
     public function store(Request $request)
     {
         // 1. Verificar la funcionalidad de PostGIS
