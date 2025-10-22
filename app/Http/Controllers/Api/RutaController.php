@@ -109,10 +109,11 @@ class RutaController extends Controller
         */
 
         // Verificación final de que se pudo calcular la geometría
+        /*
         if ($shapeExpr === null) {
             // Esto solo debería ocurrir si la validación falla de forma inesperada.
             abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'La geometría de la ruta no fue procesada. Verifique los datos de entrada.');
-        }
+        }*/
 
         // ==========================================================
         // 3. CREACIÓN Y ADJUNCIÓN (DENTRO DE LA TRANSACCIÓN)
@@ -149,7 +150,7 @@ class RutaController extends Controller
                 [
                     'geojson' => $geojson,
                     'shape_expression' => (string)$shapeExpr,
-                ], Response::HTTP_CREATED);
+                ], 200);
 
         } catch (\Throwable $e) {
             Log::error('Error creando ruta', [
