@@ -184,7 +184,7 @@ class RutaController extends Controller
 */
             //return response()->json($ruta, Response::HTTP_CREATED);
 
-            return response()->json(['data' => 'Funciona'], 201);
+            return response()->json(['data' => $request->all()], 201);
 
 
         // Línea de código muerta al final del método, puede ser eliminada
