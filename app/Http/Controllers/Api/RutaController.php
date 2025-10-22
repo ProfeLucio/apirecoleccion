@@ -64,7 +64,7 @@ class RutaController extends Controller
  *   path="/api/rutas",
  *   tags={"Rutas"},
  *   summary="Crear una nueva ruta",
- *   description="Envía 'shape' (GeoJSON como cadena) O 'calles_ids' (array de UUIDs). Debe venir uno de los dos.",
+ *   description="Envía shape (GeoJSON como cadena) O calles_ids (array de UUIDs). Debe venir uno de los dos.",
  *   @OA\RequestBody(
  *     required=true,
  *     @OA\JsonContent(
