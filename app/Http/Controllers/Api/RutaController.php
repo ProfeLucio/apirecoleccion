@@ -118,7 +118,7 @@ class RutaController extends Controller
         // ==========================================================
         // 3. CREACIÓN Y ADJUNCIÓN (DENTRO DE LA TRANSACCIÓN)
         // ==========================================================
-        try {
+
 /*
             $rutaId = null;
 
@@ -148,22 +148,10 @@ class RutaController extends Controller
             //return response()->json($ruta, Response::HTTP_CREATED);
             return response()->json(
                 [
-                    'geojson' => $geojson,
-                    'shape_expression' => (string)$shapeExpr,
+                    'geojson' => null,
                 ], 200);
 
-        } catch (\Throwable $e) {
-            Log::error('Error creando ruta', [
-                'msg'  => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-            ]);
 
-            return response()->json([
-                'message' => 'No se pudo crear la ruta.',
-                'error'   => config('app.debug') ? $e->getMessage() : null,
-            ], 500);
-        }
 
         // Línea de código muerta al final del método, puede ser eliminada
         // return response()->json(['message' => 'Creación de rutas deshabilitada temporalmente.', 'data' => $request->all()], 200);
