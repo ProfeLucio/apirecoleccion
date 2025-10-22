@@ -58,57 +58,61 @@ class RutaController extends Controller
         return response()->json(['data' => $rutas]);
     }
 
-   /**
+/**
  * @OA\Post(
  * path="/api/rutas",
  * summary="Crear una nueva ruta",
- * description="Crea una ruta a partir de una geometría GeoJSON o por IDs de calles. Es obligatorio enviar uno de los dos campos: 'shape' O 'calles_ids'.",
+ * description="Crea una ruta a partir de una geometría GeoJSON (Modo Shape) o uniendo las geometrías de una lista de IDs de calles (Modo Calles). **Es obligatorio enviar uno de los dos: 'shape' o 'calles_ids'.**",
  * tags={"Rutas"},
  * @OA\RequestBody(
  * required=true,
  * @OA\JsonContent(
- * // ATENCIÓN: Eliminamos "shape" de 'required'
+ * // Campos siempre requeridos
  * required={"nombre_ruta", "perfil_id"},
- * * // Usamos 'oneOf' para forzar que uno de los dos grupos de propiedades sea obligatorio
- * @OA\Schema(
+ * * @OA\Schema(
  * allOf={
  * @OA\Schema(
- * @OA\Property(property="nombre_ruta", type="string", example="Ruta Personalizada 1"),
- * @OA\Property(property="perfil_id", type="string", format="uuid")
+ * @OA\Property(property="nombre_ruta", type="string", example="Ruta de Mantenimiento B"),
+ * @OA\Property(property="perfil_id", type="string", format="uuid", example="18851282-1a08-42b7-9384-243cc2ead349")
  * ),
+ * * // Lógica de Exclusión Mutua: ONEOF asegura que solo se permite uno de los dos objetos
  * @OA\Schema(
  * oneOf={
- * // OPCIÓN 1: Enviar 'shape'
+ * // -----------------------------------------------------
+ * // OPCIÓN 1: Modo SHAPE (Geometría directa GeoJSON)
+ * // -----------------------------------------------------
  * @OA\Schema(
  * required={"shape"},
  * @OA\Property(
  * property="shape",
- * type="string", // Debe ser 'string' porque lo envías como cadena JSON
- * description="Cadena GeoJSON (LineString o Polygon). Debe ser obligatorio si calles_ids está ausente.",
+ * type="string",
+ * description="Cadena GeoJSON LineString o MultiLineString. Obligatorio si 'calles_ids' está ausente.",
  * example="{\"type\":\"LineString\",\"coordinates\":[[-77.078,3.889],[-77.060,3.882]]}"
  * ),
  * @OA\Property(
  * property="calles_ids",
  * type="array",
  * nullable=true,
- * description="Debe ser nulo o omitido si se envía 'shape'.",
+ * description="Debe ser nulo o omitido en Modo Shape.",
  * @OA\Items(type="string", format="uuid")
  * )
  * ),
- * // OPCIÓN 2: Enviar 'calles_ids'
+ * // -----------------------------------------------------
+ * // OPCIÓN 2: Modo CALLES_IDS (Unión de geometrías)
+ * // -----------------------------------------------------
  * @OA\Schema(
  * required={"calles_ids"},
  * @OA\Property(
  * property="shape",
  * type="string",
  * nullable=true,
- * description="Debe ser nulo o omitido si se envía 'calles_ids'."
+ * description="Debe ser nulo o omitido en Modo Calles."
  * ),
  * @OA\Property(
  * property="calles_ids",
  * type="array",
- * description="Lista de UUIDs de las calles que componen la ruta. Debe ser obligatorio si 'shape' está ausente.",
- * @OA\Items(type="string", format="uuid"),
+ * description="Lista de UUIDs de las calles a unir para formar la ruta. Obligatorio si 'shape' está ausente.",
+ * @OA\Items(type="string", format="uuid", example="a7774b8d-b4f5-40d4-b303-bc334efac4a0"),
  * minItems=1
  * )
  * )
@@ -118,8 +122,18 @@ class RutaController extends Controller
  * )
  * )
  * ),
- * @OA\Response(response=201, description="Ruta creada"),
- * @OA\Response(response=422, description="Validación fallida: Se debe enviar 'shape' o 'calles_ids'.")
+ * @OA\Response(
+ * response=201,
+ * description="Ruta creada exitosamente.",
+ * @OA\JsonContent(
+ * @OA\Property(property="id", type="string", format="uuid"),
+ * @OA\Property(property="nombre_ruta", type="string"),
+ * @OA\Property(property="shape_geojson", type="string", description="Geometría final de la ruta en formato GeoJSON."),
+ * @OA\Property(property="calles", type="array", description="Lista de calles adjuntas (si se crearon por IDs).")
+ * )
+ * ),
+ * @OA\Response(response=422, description="Validación fallida: Faltan campos obligatorios o los IDs no existen."),
+ * @OA\Response(response=500, description="Error de servidor: Fallo en la transacción o en la manipulación de PostGIS.")
  * )
  */
 public function store(Request $request)
