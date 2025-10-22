@@ -100,7 +100,6 @@ class PosicionController extends Controller
     try {
 
         // **CORRECCIÓN CLAVE:** Usar Posicion::create directamente
-        /*
         $posicion = Posicion::create([
             'recorrido_id' => $recorrido->id, // ID obtenido del modelo inyectado
             'perfil_id'    => $validatedData['perfil_id'],
@@ -111,21 +110,10 @@ class PosicionController extends Controller
                 $validatedData['lon'],
                 $validatedData['lat']
             ]),
-        ]);*/
-        $data = [
-            //'id'            => $posicion->id,
-            'recorrido_id'  => $recorrido->id,
-            'perfil_id'     => $validatedData['perfil_id'],
-            'capturado_ts'  => now(),
-            'geom'         => DB::raw("ST_SetSRID(ST_MakePoint(?, ?), 4326)", [
-                $validatedData['lon'],
-                $validatedData['lat']
-            ]),
-        ];
-        /*
+        ]);
+
         // 4. Formatear la respuesta (para incluir el GeoJSON)
         // Se debe hacer una nueva consulta ya que eliminamos el accesor del modelo.
-        /*
         $posicionFormateada = DB::table('posiciones')
             ->where('id', $posicion->id)
             ->select(
@@ -135,9 +123,9 @@ class PosicionController extends Controller
                 'capturado_ts',
                 DB::raw('ST_AsGeoJSON(geom) as geom_geojson') // Campo GeoJSON
             )
-            ->first();*/
+            ->first();
 
-        return response()->json($data, Response::HTTP_CREATED);
+        return response()->json($posicionFormateada, Response::HTTP_CREATED);
 
     } catch (\Exception $e) {
         // Manejo de errores de MassAssignment o QueryException
