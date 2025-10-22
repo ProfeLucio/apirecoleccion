@@ -93,10 +93,12 @@ class RutaController extends Controller
  */
 public function store(Request $request)
 {
+    // 1) VALIDACIÓN: shape puede ser array (objeto JSON) o string con JSON
     $validated = $request->validate([
         'nombre_ruta' => 'required|string|max:255',
         'perfil_id'   => 'required|uuid|exists:perfiles,id',
-        'shape'       => 'required_without:calles_ids|nullable|string|json',
+        // permitimos ambos formatos:
+        'shape'       => 'required_without:calles_ids|nullable',
         'calles_ids'  => 'required_without:shape|nullable|array|min:1',
         'calles_ids.*'=> 'uuid|exists:calles,id',
     ]);
@@ -108,12 +110,25 @@ public function store(Request $request)
 
             $shapeExpr = null;
 
-            // Caso A: GeoJSON directo (string)
+            // ===== Caso A: GeoJSON directo (objeto o string) =====
             if (!empty($validated['shape'])) {
-                $geojson = str_replace("'", "''", $validated['shape']); // escapar comillas simples
+                // Normalizar a string JSON
+                if (is_array($validated['shape'])) {
+                    // objeto recibido -> codificar
+                    $geojson = json_encode($validated['shape'], JSON_UNESCAPED_SLASHES);
+                } else {
+                    // string recibido -> usar tal cual
+                    $geojson = (string)$validated['shape'];
+                }
+
+                // Sanitizar comillas simples para el literal SQL
+                $geojson = str_replace("'", "''", $geojson);
+
+                // Crear expresión geométrica
                 $shapeExpr = DB::raw("ST_SetSRID(ST_GeomFromGeoJSON('{$geojson}'), 4326)");
             }
-            // Caso B: unión de calles
+
+            // ===== Caso B: Unión de calles =====
             elseif (!empty($validated['calles_ids'])) {
                 $merged = DB::table('calles')
                     ->whereIn('id', $validated['calles_ids'])
@@ -123,6 +138,7 @@ public function store(Request $request)
                 if (!$merged || $merged->merged_shape === null) {
                     abort(Response::HTTP_UNPROCESSABLE_ENTITY, 'No se pudo generar una geometría válida a partir de las calles seleccionadas.');
                 }
+
                 $wkt = str_replace("'", "''", $merged->merged_shape);
                 $shapeExpr = DB::raw("ST_SetSRID(ST_GeomFromText('{$wkt}', 4326), 4326)");
             }
@@ -131,6 +147,7 @@ public function store(Request $request)
                 abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'La geometría de la ruta no fue procesada.');
             }
 
+            // Insert
             $ruta = Ruta::create([
                 'nombre_ruta' => $validated['nombre_ruta'],
                 'perfil_id'   => $validated['perfil_id'],
@@ -150,30 +167,25 @@ public function store(Request $request)
             $rutaId = $ruta->id;
         });
 
-        // Re-cargar con GeoJSON computado para evitar serializar geometry crudo
+        // 4) Respuesta con GeoJSON calculado
         $ruta = Ruta::select('*')
             ->addSelect(DB::raw('ST_AsGeoJSON(shape) AS shape_geojson'))
             ->with('calles')
             ->findOrFail($rutaId);
 
-        // Opcional: ocultar el campo shape en la respuesta si no lo quieres
         unset($ruta->shape);
 
         return response()->json($ruta, Response::HTTP_CREATED);
 
     } catch (\Throwable $e) {
-        Log::error('Error creando ruta', [
-            'msg' => $e->getMessage(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine(),
-        ]);
-        // Mensaje amigable (el detalle queda en el log)
+        Log::error('Error creando ruta', ['msg'=>$e->getMessage(), 'file'=>$e->getFile(), 'line'=>$e->getLine()]);
         return response()->json([
             'message' => 'No se pudo crear la ruta.',
-            'error'   => app()->hasDebugMode() && config('app.debug') ? $e->getMessage() : null,
+            'error'   => config('app.debug') ? $e->getMessage() : null,
         ], 500);
     }
 }
+
 
 /**
      * @OA\Get(
