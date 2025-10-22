@@ -23,6 +23,9 @@ class Posicion extends Model
 
     protected $table = 'posiciones';
 
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     protected $fillable = [
         'recorrido_id',
         'perfil_id',

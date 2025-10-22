@@ -19,6 +19,8 @@ class Recorrido extends Model
         'estado',
     ];
 
+    protected $keyType = 'string';
+    public $incrementing = false;
 
     public function vehiculo()
     {
