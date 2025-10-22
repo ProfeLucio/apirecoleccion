@@ -87,21 +87,21 @@ class PosicionController extends Controller
         'perfil_id' => 'required|uuid|exists:perfiles,id'
     ]);
 
-    // 2. Verificación de Seguridad y Estado (usando el modelo inyectado)
-    // Verifica que el perfil enviado en el cuerpo coincida con el perfil dueño del recorrido.
+    // 2. Verificación de Seguridad y Estado
     if ($recorrido->perfil_id !== $validatedData['perfil_id']) {
-        return response()->json(['error' => 'No autorizado para añadir posiciones a este recorrido. El perfil no coincide.'], 403);
+        return response()->json(['error' => 'No autorizado para añadir posiciones a este recorrido.'], 403);
     }
 
-    // Verifica que el recorrido esté activo.
     if ($recorrido->estado !== 'En Curso') {
         return response()->json(['error' => 'El recorrido debe estar "En Curso" para añadir posiciones.'], 403);
     }
 
     // 3. Crear la posición
     try {
-        // Usa la relación para asignar automáticamente recorrido_id
-        $posicion = $recorrido->posiciones()->create([
+
+        // **CORRECCIÓN CLAVE:** Usar Posicion::create directamente
+        $posicion = Posicion::create([
+            'recorrido_id' => $recorrido->id, // ID obtenido del modelo inyectado
             'perfil_id'    => $validatedData['perfil_id'],
             'capturado_ts' => now(),
 
@@ -112,9 +112,8 @@ class PosicionController extends Controller
             ]),
         ]);
 
-        // 4. Formatear la respuesta
-        // Ya que eliminamos el accesor del modelo, debemos consultar el registro
-        // de nuevo para obtener el GeoJSON formateado para la respuesta JSON.
+        // 4. Formatear la respuesta (para incluir el GeoJSON)
+        // Se debe hacer una nueva consulta ya que eliminamos el accesor del modelo.
         $posicionFormateada = DB::table('posiciones')
             ->where('id', $posicion->id)
             ->select(
@@ -126,16 +125,16 @@ class PosicionController extends Controller
             )
             ->first();
 
-        // Si el registro se crea correctamente, devolvemos el registro formateado.
         return response()->json($posicionFormateada, Response::HTTP_CREATED);
 
     } catch (\Exception $e) {
         // Manejo de errores de MassAssignment o QueryException
-        \Log::error('Error al registrar la posición:', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+        \Log::error('Error al registrar la posición (final):', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
 
+        // **IMPORTANTE:** Si esto falla, activa APP_DEBUG=true para ver el mensaje exacto
         return response()->json([
-            'message' => 'Error interno al registrar la posición. Revise los logs del servidor.',
-            'error_details' => app()->hasDebugMode() && config('app.debug') ? $e->getMessage() : null,
+            'message' => 'Error crítico al registrar la posición. Active APP_DEBUG para detalles.',
+            'error_details' => config('app.debug') ? $e->getMessage() : null,
         ], 500);
     }
 }
