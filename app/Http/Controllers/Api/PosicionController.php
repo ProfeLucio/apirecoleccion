@@ -113,11 +113,14 @@ class PosicionController extends Controller
             ]),
         ]);*/
         $data = [
-            'id'            => $posicion->id,
-            'recorrido_id'  => $posicion->recorrido_id,
-            'perfil_id'     => $posicion->perfil_id,
-            'capturado_ts'  => $posicion->capturado_ts,
-            //'geom'          => DB::selectOne("SELECT ST_AsGeoJSON(?) AS geojson", [$posicion->geom])->geojson,
+            //'id'            => $posicion->id,
+            'recorrido_id'  => $recorrido->id,
+            'perfil_id'     => $validatedData['perfil_id'],
+            'capturado_ts'  => now(),
+            'geom'         => DB::raw("ST_SetSRID(ST_MakePoint(?, ?), 4326)", [
+                $validatedData['lon'],
+                $validatedData['lat']
+            ]),
         ];
         /*
         // 4. Formatear la respuesta (para incluir el GeoJSON)
