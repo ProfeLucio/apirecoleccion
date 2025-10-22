@@ -105,6 +105,10 @@ class RutaController extends Controller
         try {
             // 1) validación SIN lanzar excepción automática
 
+            $validator = Validator::make($request->all(), [
+                'nombre_ruta' => 'required|string|max:255',
+            ]);
+
             return response()->json(['ok' => true, 'data' => $request->all()], 201);
 
         } catch (\Throwable $e) {
