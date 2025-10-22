@@ -51,7 +51,7 @@ class RutaController extends Controller
             'perfil_id',
             'nombre_ruta',
             'color_hex',
-           // DB::raw('ST_AsGeoJSON(shape) as shape')
+            DB::raw('ST_AsGeoJSON(shape) as shape')
         )
         ->where('perfil_id', $request->query('perfil_id'))
         ->get();
