@@ -40,6 +40,9 @@ jobs:
           echo ">>> Deploying API Controllers..."
           rsync -avz --delete ./app/Http/Controllers/Api/ ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/app/Http/Controllers/Api/
 
+          echo ">>> Deploying Routes..."
+          rsync -avz --delete ./routes/api.php ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/routes/api.php
+
       # 2.4. Ejecuta los comandos de optimización en el servidor remoto.
       # Conecta por SSH y ejecuta las tareas de limpieza de caché y generación de docs.
       - name: Run post-deploy commands
