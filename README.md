@@ -1,61 +1,130 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🗺️ Documentación de Estructuras JSON para Endpoints de la API Geo-Recolección
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Este documento describe la estructura del payload (`JSON`) requerido para interactuar correctamente con los principales endpoints de la API.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 1. Vehículos (`POST /api/vehiculos`)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Se utiliza para registrar un nuevo vehículo en el sistema.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|------------|-------------|
+| `placa` | string | ✅ Sí | Placa única del vehículo (ej., `CAB-999`). |
+| `marca` | string | ✅ Sí | Marca del vehículo. |
+| `modelo` | string | ✅ Sí | Año o descripción del modelo. |
+| `activo` | boolean | ✅ Sí | Indica si el vehículo está operativo. |
+| `perfil_id` | UUID | ✅ Sí | ID del perfil que registra el vehículo. |
 
-## Learning Laravel
+### Ejemplo JSON
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+```json
+{
+  "placa": "CAB-999",
+  "marca": "SUZUKI",
+  "modelo": "1990",
+  "activo": true,
+  "perfil_id": "18851282-1a08-42b7-9384-243cc2ead349"
+}
+```
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+---
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## 2. Rutas (`POST /api/rutas`)
 
-## Laravel Sponsors
+Permite crear una ruta geográfica.  
+Solo se debe enviar **`shape` (geometría directa)** o **`calles_ids` (unión de segmentos)**.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|------------|-------------|
+| `nombre_ruta` | string | ✅ Sí | Nombre asignado a la nueva ruta. |
+| `perfil_id` | UUID | ✅ Sí | ID del perfil creador de la ruta. |
+| `shape` | object | ⚪ No (si `calles_ids` es nulo) | Geometría de la ruta en formato `GeoJSON` (`LineString`). |
+| `calles_ids` | array de UUID | ⚪ No (si `shape` es nulo) | Lista ordenada de `UUIDs` de calles a unir (usando `ST_Union`). |
 
-### Premium Partners
+---
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### 🅰️ Caso A: Crear Ruta por Unión de Calles
 
-## Contributing
+```json
+{
+  "nombre_ruta": "Ruta ejemplo 1 (Unión)",
+  "perfil_id": "18851282-1a08-42b7-9384-243cc2ead349",
+  "calles_ids": [
+    "e814077c-b38b-442d-ae63-b1be256a1c03",
+    "7dcf5142-f4b2-46e2-9518-5bd7e9bd2a27"
+  ]
+}
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+---
 
-## Code of Conduct
+### 🅱️ Caso B: Crear Ruta con Geometría Directa  
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+> **Nota:** El valor de `shape` debe ser un objeto `GeoJSON` válido.
 
-## Security Vulnerabilities
+```json
+{
+  "nombre_ruta": "Ruta Solo Geometría",
+  "perfil_id": "18851282-1a08-42b7-9384-243cc2ead349",
+  "shape": {
+    "type": "LineString",
+    "coordinates": [
+      [-77.0782, 3.8898],
+      [-77.0605, 3.8828]
+    ]
+  }
+}
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+---
 
-## License
+## 3. Recorridos y Posiciones 📍
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### 3.1. Iniciar Recorrido (`POST /api/recorridos/iniciar`)
+
+Registra el inicio de una operación.
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|------------|-------------|
+| `ruta_id` | UUID | ✅ Sí | ID de la ruta planificada. |
+| `vehiculo_id` | UUID | ✅ Sí | ID del vehículo asignado. |
+| `perfil_id` | UUID | ✅ Sí | ID del conductor que inicia el recorrido. |
+
+#### Ejemplo JSON
+
+```json
+{
+  "ruta_id": "XXXXX-XXXX-XXXX-XXXX-XXXXXXXX",
+  "vehiculo_id": "XXXXX-XXXX-XXXX-XXXX-XXXXXXXX",
+  "perfil_id": "18851282-1a08-42b7-9384-243cc2ead349"
+}
+```
+
+---
+
+### 3.2. Registrar Posición (`POST /api/recorridos/{recorrido_id}/posiciones`)
+
+Registra una coordenada de GPS en un recorrido activo.  
+El `UUID` del recorrido se pasa en la **URL**.
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|------------|-------------|
+| `lat` | decimal | ✅ Sí | Latitud de la posición. |
+| `lon` | decimal | ✅ Sí | Longitud de la posición. |
+| `perfil_id` | UUID | ✅ Sí | ID del perfil que envía la coordenada. |
+
+#### Ejemplo JSON
+
+```json
+{
+  "lat": 3.42158,
+  "lon": -76.5205,
+  "perfil_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+}
+```
+
+---
+
+📘 **Autor:** Equipo de Desarrollo Geo-Recolección  
+📅 **Última actualización:** Octubre 2025
