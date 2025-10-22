@@ -59,97 +59,101 @@ class RutaController extends Controller
         return response()->json(['data' => $rutas]);
     }
 
-public function store(Request $request)
-{
-    // Aceptar shape como array o string
-    $validated = $request->validate([
-        'nombre_ruta' => 'required|string|max:255',
-        'perfil_id'   => 'required|uuid|exists:perfiles,id',
-        'shape'       => 'required_without:calles_ids|nullable',   // <- ya no string|json
-        'calles_ids'  => 'required_without:shape|nullable|array|min:1',
-        'calles_ids.*'=> 'uuid|exists:calles,id',
-    ]);
-
-    try {
-        $rutaId = null;
-
-        DB::transaction(function () use ($validated, &$rutaId) {
-
-            $ruta = Ruta::create([
-                'nombre_ruta' => $validated['nombre_ruta'],
-                'perfil_id'   => $validated['perfil_id'],
-                // ¡NO poner 'shape' aquí!
-            ]);
-
-            // ----- Caso A: viene shape (objeto o string) -----
-            if (!empty($validated['shape'])) {
-                // Normalizar a string JSON
-                if (is_array($validated['shape'])) {
-                    $geojson = json_encode($validated['shape'], JSON_UNESCAPED_SLASHES);
-                } else {
-                    $geojson = (string) $validated['shape'];
-                }
-
-                // Actualizar shape con bindings seguros
-                DB::update(
-                    "UPDATE rutas
-                     SET shape = ST_SetSRID(ST_GeomFromGeoJSON(?), 4326)
-                     WHERE id = ?",
-                    [$geojson, $ruta->id]
-                );
-            }
-
-            // ----- Caso B: viene calles_ids (unión) -----
-            elseif (!empty($validated['calles_ids'])) {
-                $merged = DB::table('calles')
-                    ->whereIn('id', $validated['calles_ids'])
-                    ->select(DB::raw('ST_AsText(ST_Union(shape)) AS merged_shape'))
-                    ->first();
-
-                if (!$merged || $merged->merged_shape === null) {
-                    abort(Response::HTTP_UNPROCESSABLE_ENTITY, 'No se pudo generar una geometría válida a partir de las calles seleccionadas.');
-                }
-
-                DB::update(
-                    "UPDATE rutas
-                     SET shape = ST_SetSRID(ST_GeomFromText(?, 4326), 4326)
-                     WHERE id = ?",
-                    [$merged->merged_shape, $ruta->id]
-                );
-
-                // guardar orden en pivote si aplica
-                $callesToAttach = [];
-                $orden = 0;
-                foreach ($validated['calles_ids'] as $calleId) {
-                    $callesToAttach[$calleId] = ['orden' => $orden++];
-                }
-                $ruta->calles()->attach($callesToAttach);
-            }
-
-            $rutaId = $ruta->id;
-        });
-
-        // Responder con GeoJSON calculado (evitar serializar geometry crudo)
-        $ruta = Ruta::select('id','perfil_id','nombre_ruta','color_hex')
-            ->addSelect(DB::raw('ST_AsGeoJSON(shape) AS shape_geojson'))
-            ->with('calles')
-            ->findOrFail($rutaId);
-
-        return response()->json($ruta, Response::HTTP_CREATED);
-
-    } catch (\Throwable $e) {
-        Log::error('Error creando ruta', [
-            'msg'  => $e->getMessage(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine(),
+    public function store(Request $request)
+    {
+        // Aceptar shape como array o string
+        $validated = $request->validate([
+            'nombre_ruta' => 'required|string|max:255',
+            'perfil_id'   => 'required|uuid|exists:perfiles,id',
+            'shape'       => 'required_without:calles_ids|nullable',   // <- ya no string|json
+            'calles_ids'  => 'required_without:shape|nullable|array|min:1',
+            'calles_ids.*'=> 'uuid|exists:calles,id',
         ]);
 
-        return response()->json([
-            'message' => 'No se pudo crear la ruta.',
-            'error'   => config('app.debug') ? $e->getMessage() : null,
-        ], 500);
+        /*
+        try {
+            $rutaId = null;
+
+            DB::transaction(function () use ($validated, &$rutaId) {
+
+                $ruta = Ruta::create([
+                    'nombre_ruta' => $validated['nombre_ruta'],
+                    'perfil_id'   => $validated['perfil_id'],
+                    // ¡NO poner 'shape' aquí!
+                ]);
+
+                // ----- Caso A: viene shape (objeto o string) -----
+                if (!empty($validated['shape'])) {
+                    // Normalizar a string JSON
+                    if (is_array($validated['shape'])) {
+                        $geojson = json_encode($validated['shape'], JSON_UNESCAPED_SLASHES);
+                    } else {
+                        $geojson = (string) $validated['shape'];
+                    }
+
+                    // Actualizar shape con bindings seguros
+                    DB::update(
+                        "UPDATE rutas
+                        SET shape = ST_SetSRID(ST_GeomFromGeoJSON(?), 4326)
+                        WHERE id = ?",
+                        [$geojson, $ruta->id]
+                    );
+                }
+
+                // ----- Caso B: viene calles_ids (unión) -----
+                elseif (!empty($validated['calles_ids'])) {
+                    $merged = DB::table('calles')
+                        ->whereIn('id', $validated['calles_ids'])
+                        ->select(DB::raw('ST_AsText(ST_Union(shape)) AS merged_shape'))
+                        ->first();
+
+                    if (!$merged || $merged->merged_shape === null) {
+                        abort(Response::HTTP_UNPROCESSABLE_ENTITY, 'No se pudo generar una geometría válida a partir de las calles seleccionadas.');
+                    }
+
+                    DB::update(
+                        "UPDATE rutas
+                        SET shape = ST_SetSRID(ST_GeomFromText(?, 4326), 4326)
+                        WHERE id = ?",
+                        [$merged->merged_shape, $ruta->id]
+                    );
+
+                    // guardar orden en pivote si aplica
+                    $callesToAttach = [];
+                    $orden = 0;
+                    foreach ($validated['calles_ids'] as $calleId) {
+                        $callesToAttach[$calleId] = ['orden' => $orden++];
+                    }
+                    $ruta->calles()->attach($callesToAttach);
+                }
+
+                $rutaId = $ruta->id;
+            });
+
+            // Responder con GeoJSON calculado (evitar serializar geometry crudo)
+            $ruta = Ruta::select('id','perfil_id','nombre_ruta','color_hex')
+                ->addSelect(DB::raw('ST_AsGeoJSON(shape) AS shape_geojson'))
+                ->with('calles')
+                ->findOrFail($rutaId);
+
+            return response()->json($ruta, Response::HTTP_CREATED);
+
+        } catch (\Throwable $e) {
+            Log::error('Error creando ruta', [
+                'msg'  => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'message' => 'No se pudo crear la ruta.',
+                'error'   => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+        */
+        return response()->json(['message' => 'Creación de rutas deshabilitada temporalmente.', 'data' => $request->all()], 200);
+
     }
-}
 
 /**
      * @OA\Get(
