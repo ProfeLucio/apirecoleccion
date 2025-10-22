@@ -98,14 +98,15 @@ class RutaController extends Controller
     public function store(Request $request)
     {
         // 1. Validar los datos
+        /*
         $validated = $request->validate([
             'nombre_ruta' => 'required|string|max:255',
             'perfil_id'   => 'required|uuid|exists:perfiles,id',
-            'shape'       => 'required_without:calles_ids|nullable|string|json', // Nota: asumo que validaste que el JSON sea válido.
+            'shape'       => 'required_without:calles_ids|nullable|string|json',
             'calles_ids'  => 'required_without:shape|nullable|array|min:1',
             'calles_ids.*'=> 'uuid|exists:calles,id',
         ]);
-
+*/
        // $shapeExpr = null;
         //$callesToAttach = [];
 
@@ -183,7 +184,7 @@ class RutaController extends Controller
 */
             //return response()->json($ruta, Response::HTTP_CREATED);
 
-            return response()->json(['data' => $request->all()], 201);
+            return response()->json(['data' => 'Funciona'], 201);
 
 
         // Línea de código muerta al final del método, puede ser eliminada
