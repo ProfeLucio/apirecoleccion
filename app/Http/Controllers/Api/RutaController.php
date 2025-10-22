@@ -108,6 +108,10 @@ class RutaController extends Controller
 
             $validatedData = $request->validate([
                 'nombre_ruta' => 'required|string|max:255',
+                'perfil_id'   => 'required|uuid|exists:perfiles,id',
+                'shape'       => 'nullable',
+                'calles_ids'  => 'nullable|array',
+                'calles_ids.*'=> 'uuid|exists:calles,id',
             ]);
 
             return response()->json(['ok' => true, 'data' => $request->all()], 201);
