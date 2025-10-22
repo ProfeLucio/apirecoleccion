@@ -29,6 +29,9 @@ class Ruta extends Model
         'perfil_id',
     ];
 
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     public function calles()
     {
         return $this->belongsToMany(Calle::class, 'ruta_calle')->withPivot('orden');
