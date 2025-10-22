@@ -124,48 +124,86 @@ class RutaController extends Controller
  */
     public function store(Request $request)
     {
+        // 1. VALIDACIÓN CONDICIONAL (Exclusión Mutua)
         $validatedData = $request->validate([
             'nombre_ruta' => 'required|string|max:255',
             'perfil_id'   => 'required|uuid|exists:perfiles,id',
-            // Es obligatorio si 'calles_ids' no se envía. Debe ser una cadena JSON válida.
+
+            // Requisito 1: Modo Shape (Cadena GeoJSON)
             'shape'       => 'required_without:calles_ids|nullable|string|json',
 
-            // Es obligatorio si 'shape' no se envía. Debe ser un array con al menos un ID.
+            // Requisito 2: Modo Calles (Array de IDs)
             'calles_ids'  => 'required_without:shape|nullable|array|min:1',
+            'calles_ids.*'=> 'uuid|exists:calles,id', // Se añade la validación de existencia
         ]);
 
         $ruta = null;
-
-        // Datos base para la creación, comunes a ambos casos
         $dataToCreate = [
             'nombre_ruta' => $validatedData['nombre_ruta'],
             'perfil_id'   => $validatedData['perfil_id'],
         ];
 
-        DB::transaction(function () use ($validatedData, $dataToCreate, &$ruta) {
+        // La geometría (como DB::raw) se calculará aquí para usarse en Ruta::create
+        $shapeGeometry = null;
+
+        DB::transaction(function () use ($validatedData, $dataToCreate, &$ruta, &$shapeGeometry) {
 
             // =======================================================
-            // CASO 1: Creación basada en SHAPE (Geometría)
+            // CASO A: Modo Shape (Geometría Directa)
             // =======================================================
             if (isset($validatedData['shape']) && $validatedData['shape'] !== null) {
 
-                // Adjuntamos el campo 'shape' convertido a geometría usando DB::raw
-                $ruta = Ruta::create(array_merge($dataToCreate, [
-                    // Usamos Query Bindings (?) para seguridad en la cadena GeoJSON
-                    'shape' => DB::raw("ST_GeomFromGeoJSON(?)", [$validatedData['shape']])
-                ]));
+                // 1. Simplemente preparar la geometría GeoJSON
+                $shapeGeometry = DB::raw("ST_GeomFromGeoJSON(?)", [$validatedData['shape']]);
 
             }
 
             // =======================================================
-            // CASO 2: Creación basada en CALLES_IDS
+            // CASO B: Modo Calles (Unión de Geometrías)
             // =======================================================
             elseif (isset($validatedData['calles_ids']) && count($validatedData['calles_ids']) > 0) {
 
-                // Creamos la ruta sin el campo 'shape' (se asume NULL o default)
-                $ruta = Ruta::create($dataToCreate);
+                $callesIds = $validatedData['calles_ids'];
 
-                // Adjuntamos las calles usando la relación muchos a muchos
+                // 1. Obtener la geometría unida (WKT) de la BD (más eficiente y seguro)
+                $mergedShapeResult = DB::table('calles')
+                    ->whereIn('id', $callesIds)
+                    // Usamos ST_Union para agregación de geometrías
+                    ->select(DB::raw('ST_AsText(ST_Union(shape)) as merged_shape'))
+                    ->first();
+
+                // Manejar si la unión no produce una geometría válida
+                if (!$mergedShapeResult || $mergedShapeResult->merged_shape === null) {
+                    abort(422, 'No se pudo generar una geometría válida a partir de las calles seleccionadas.');
+                }
+
+                $geometriaUnidaWKT = $mergedShapeResult->merged_shape;
+
+                // 2. Preparar la geometría WKT
+                $shapeGeometry = DB::raw("ST_GeomFromText(?, 4326)", [$geometriaUnidaWKT]);
+
+                // 3. Adjuntar calles (Se hace aquí, antes de la creación, en caso de fallo, se revierte)
+                // Primero creamos la ruta sin la geometría, solo para obtener el ID y adjuntar calles
+                // O mejor, guardar los datos en $callesToAttach y adjuntarlos al final.
+            }
+
+            // =======================================================
+            // 2. CREACIÓN ÚNICA DE LA RUTA (Asegurando que 'shape' siempre se guarda)
+            // =======================================================
+            if ($shapeGeometry === null) {
+                 // Esto solo ocurriría si la validación falla (lo cual required_without lo impide)
+                 abort(500, 'Error interno: La geometría no pudo ser determinada.');
+            }
+
+            // Crear la ruta con la geometría determinada en el caso A o B
+            $ruta = Ruta::create(array_merge($dataToCreate, [
+                'shape' => $shapeGeometry,
+            ]));
+
+            // =======================================================
+            // 3. ADJUNTAR CALLES (Solo si estamos en el Caso B)
+            // =======================================================
+            if (isset($validatedData['calles_ids']) && count($validatedData['calles_ids']) > 0) {
                 $callesToAttach = [];
                 $orden = 0;
 
@@ -176,11 +214,10 @@ class RutaController extends Controller
                 $ruta->calles()->attach($callesToAttach);
             }
 
-            // NOTA: Gracias a required_without, sabemos que uno de los dos bloques se ejecutará.
+        }); // Fin de DB::transaction
 
-        });
-
-        return response()->json($ruta, 201);
+        // 4. Devolvemos la ruta creada (cargamos 'calles' solo si se adjuntaron)
+        return response()->json($ruta->load('calles'), 201);
     }
 
 /**
