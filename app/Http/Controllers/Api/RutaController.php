@@ -133,6 +133,25 @@ class RutaController extends Controller
                     ], Response::HTTP_UNPROCESSABLE_ENTITY);
                 }
             }
+            else {
+                // construir GeoJSON a partir de calles_ids
+                if (!empty($validated['calles_ids'])) {
+                    $calles = Calle::whereIn('id', $validated['calles_ids'])->get();
+                    $features = [];
+                    foreach ($calles as $calle) {
+                        $features['coordinates'][] = json_decode($calle->shape->coordinates, true);
+                    }
+                    $geojsonArray = [
+                        'type' => 'LineString',
+                        'coordinates' => $features['coordinates'],
+                    ];
+                    $geojson = json_encode($geojsonArray, JSON_UNESCAPED_SLASHES);
+                } else {
+                    return response()->json([
+                        'message' => 'Debe proporcionar shape o calles_ids para definir la geometría de la ruta.'
+                    ], Response::HTTP_UNPROCESSABLE_ENTITY);
+                }
+            }
 
             // Crear la ruta
             $ruta = new Ruta();
