@@ -75,14 +75,14 @@ class RutaController extends Controller
  *         property="shape",
  *         type="string",
  *         nullable=true,
- *         description="Cadena GeoJSON (LineString o MultiLineString). Obligatorio si 'calles_ids' está ausente.",
+ *         description="Cadena GeoJSON (LineString o MultiLineString). Obligatorio si calles_ids está ausente.",
  *         example="{\"type\":\"LineString\",\"coordinates\":[[-77.0782,3.8898],[-77.0605,3.8828]]}"
  *       ),
  *       @OA\Property(
  *         property="calles_ids",
  *         type="array",
  *         nullable=true,
- *         description="Lista de UUIDs de calles. Obligatorio si 'shape' está ausente.",
+ *         description="Lista de UUIDs de calles. Obligatorio si shape está ausente.",
  *         @OA\Items(type="string", format="uuid")
  *       )
  *     )
