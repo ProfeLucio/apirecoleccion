@@ -122,37 +122,91 @@ class RutaController extends Controller
  * @OA\Response(response=422, description="Validación fallida: Se debe enviar 'shape' o 'calles_ids'.")
  * )
  */
-protected function checkPostgis()
-    {
-        try {
-            // ... (Tu código checkPostgis permanece igual)
-            $result = DB::selectOne('SELECT PostGIS_Version() as version');
-
-            if (empty($result) || !isset($result->version)) {
-                throw new \Exception('PostGIS no devolvió una versión válida.');
-            }
-
-            // Retorna la versión, que es una cadena.
-            return $result->version;
-
-        } catch (\Exception $e) {
-            \Log::error("Fallo la verificación de PostGIS: " . $e->getMessage());
-            // Si falla, aborta la ejecución con error 500
-            abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'Error de servidor: La extensión geoespacial (PostGIS) no está operativa.');
-        }
-    }
-
     public function store(Request $request)
     {
-        // 1. Verificar la funcionalidad de PostGIS
-    $postgisVersion = $this->checkPostgis();
+        // ... (Tu función checkPostgis() iría aquí, pero la omitimos en el código final)
 
-    // 2. DETENER LA EJECUCIÓN y devolver el resultado para verificación
-    return response()->json([
-        'status' => 'OK - PostGIS Verificado',
-        'postgis_version' => $postgisVersion,
-        'mensaje' => 'La lógica de creación de la ruta no se ejecutó.'
-    ], 200);
+        // 1. VALIDACIÓN
+        $validatedData = $request->validate([
+            'nombre_ruta' => 'required|string|max:255',
+            'perfil_id'   => 'required|uuid|exists:perfiles,id',
+            'shape'       => 'required_without:calles_ids|nullable|string|json',
+            'calles_ids'  => 'required_without:shape|nullable|array|min:1',
+            'calles_ids.*'=> 'uuid|exists:calles,id',
+        ]);
+
+        $ruta = null;
+        $dataToCreate = [
+            'nombre_ruta' => $validatedData['nombre_ruta'],
+            'perfil_id'   => $validatedData['perfil_id'],
+        ];
+        $shapeGeometry = null;
+
+        DB::transaction(function () use ($validatedData, $dataToCreate, &$ruta, &$shapeGeometry) {
+
+            // =======================================================
+            // CASO A: Modo Shape (Geometría Directa)
+            // =======================================================
+            if (isset($validatedData['shape']) && $validatedData['shape'] !== null) {
+
+                // Preparar la geometría GeoJSON
+                $shapeGeometry = DB::raw("ST_GeomFromGeoJSON(?)", [$validatedData['shape']]);
+
+            }
+
+            // =======================================================
+            // CASO B: Modo Calles (Unión de Geometrías)
+            // =======================================================
+            elseif (isset($validatedData['calles_ids']) && count($validatedData['calles_ids']) > 0) {
+
+                // 1. Obtener la geometría unida (WKT) de la BD
+                $mergedShapeResult = DB::table('calles')
+                    ->whereIn('id', $validatedData['calles_ids'])
+                    ->select(DB::raw('ST_AsText(ST_Union(shape)) as merged_shape'))
+                    ->first();
+
+                if (!$mergedShapeResult || $mergedShapeResult->merged_shape === null) {
+                    abort(Response::HTTP_UNPROCESSABLE_ENTITY, 'No se pudo generar una geometría válida a partir de las calles seleccionadas.');
+                }
+
+                $geometriaUnidaWKT = $mergedShapeResult->merged_shape;
+
+                // 2. Preparar la geometría WKT
+                $shapeGeometry = DB::raw("ST_GeomFromText(?, 4326)", [$geometriaUnidaWKT]);
+
+            }
+
+            // =======================================================
+            // 2. CREACIÓN ÚNICA DE LA RUTA (Se ejecuta solo si $shapeGeometry tiene valor)
+            // =======================================================
+            if ($shapeGeometry === null) {
+                // Este punto no debería alcanzarse si la validación es correcta
+                abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'La geometría de la ruta no fue procesada.');
+            }
+
+            $ruta = Ruta::create(array_merge($dataToCreate, [
+                // El error 500 está aquí si 'shape' no es fillable
+                'shape' => $shapeGeometry,
+            ]));
+
+            // =======================================================
+            // 3. ADJUNTAR CALLES (Solo si estamos en el Caso B)
+            // =======================================================
+            if (isset($validatedData['calles_ids']) && count($validatedData['calles_ids']) > 0) {
+                $callesToAttach = [];
+                $orden = 0;
+
+                foreach ($validatedData['calles_ids'] as $calleId) {
+                    $callesToAttach[$calleId] = ['orden' => $orden++];
+                }
+
+                $ruta->calles()->attach($callesToAttach);
+            }
+
+        });
+
+        // 4. Devolver la ruta creada
+        return response()->json($ruta->load('calles'), Response::HTTP_CREATED);
     }
 
 /**
