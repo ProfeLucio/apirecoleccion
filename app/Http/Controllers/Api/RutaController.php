@@ -133,7 +133,7 @@ protected function checkPostgis()
             }
 
             // Opcional: Podrías loggear la versión o simplemente retornar true
-            return true;
+            return $result->version;
 
         } catch (\Exception $e) {
             // Si hay una excepción (ej. "function PostGIS_Version() does not exist"),
