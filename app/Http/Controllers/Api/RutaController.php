@@ -70,8 +70,8 @@ class RutaController extends Controller
             'calles_ids.*'=> 'uuid|exists:calles,id',
         ]);
 
-        $shapeExpr = null;
-        $callesToAttach = [];
+       // $shapeExpr = null;
+        //$callesToAttach = [];
 
         // ==========================================================
         // 2. CALCULAR LA GEOMETRÍA (shapeExpr) FUERA DE LA CREACIÓN
@@ -146,11 +146,8 @@ class RutaController extends Controller
                 ->findOrFail($rutaId);
 */
             //return response()->json($ruta, Response::HTTP_CREATED);
-            return response()->json(
-                [
-                    'geojson' => null,
-                ], 200);
 
+            return response()->json(['data' => $request->all()], 201);
 
 
         // Línea de código muerta al final del método, puede ser eliminada
