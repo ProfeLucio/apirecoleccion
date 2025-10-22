@@ -156,7 +156,7 @@ class RutaController extends Controller
             $ruta->perfil_id = $validated['perfil_id'];
             $ruta->shape = $geojson;
             // Manejar shape si se proporciona
-            //$ruta->save();
+            $ruta->save();
 
 
             return response()->json(['ok' => true, 'data' => $ruta], 201);
