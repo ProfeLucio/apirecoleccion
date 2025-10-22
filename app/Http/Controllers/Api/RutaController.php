@@ -164,8 +164,6 @@ class RutaController extends Controller
             // Esto no debería suceder gracias a required_without
              $caso = 'ERROR: No se activó ningún caso (Validación fallida)';
         }
-
-        // 3. RETORNAR LA DATA PARA VERIFICACIÓN (Status 200 OK)
         return response()->json([
             'status' => 'OK - Validación Exitosa',
             'caso_activado' => $caso,
