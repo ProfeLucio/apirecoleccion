@@ -58,69 +58,130 @@ class RutaController extends Controller
         return response()->json(['data' => $rutas]);
     }
 
-/**
+   /**
  * @OA\Post(
  * path="/api/rutas",
  * summary="Crear una nueva ruta",
- * description="Crea una ruta a partir de una geometría GeoJSON. La geometría puede ser la unión de calles existentes o un trazado personalizado.",
+ * description="Crea una ruta a partir de una geometría GeoJSON o por IDs de calles. Es obligatorio enviar uno de los dos campos: 'shape' O 'calles_ids'.",
  * tags={"Rutas"},
  * @OA\RequestBody(
  * required=true,
  * @OA\JsonContent(
- * required={"nombre_ruta", "perfil_id", "shape"},
+ * // ATENCIÓN: Eliminamos "shape" de 'required'
+ * required={"nombre_ruta", "perfil_id"},
+ * * // Usamos 'oneOf' para forzar que uno de los dos grupos de propiedades sea obligatorio
+ * @OA\Schema(
+ * allOf={
+ * @OA\Schema(
  * @OA\Property(property="nombre_ruta", type="string", example="Ruta Personalizada 1"),
- * @OA\Property(property="perfil_id", type="string", format="uuid"),
+ * @OA\Property(property="perfil_id", type="string", format="uuid")
+ * ),
+ * @OA\Schema(
+ * oneOf={
+ * // OPCIÓN 1: Enviar 'shape'
+ * @OA\Schema(
+ * required={"shape"},
  * @OA\Property(
  * property="shape",
- * type="object",
- * description="Objeto GeoJSON que representa la geometría de la ruta (ej. LineString o MultiLineString)."
+ * type="string", // Debe ser 'string' porque lo envías como cadena JSON
+ * description="Cadena GeoJSON (LineString o Polygon). Debe ser obligatorio si calles_ids está ausente.",
+ * example="{\"type\":\"LineString\",\"coordinates\":[[-77.078,3.889],[-77.060,3.882]]}"
  * ),
  * @OA\Property(
  * property="calles_ids",
  * type="array",
- * description="(Opcional) Lista de UUIDs de las calles que componen esta ruta, para referencia.",
+ * nullable=true,
+ * description="Debe ser nulo o omitido si se envía 'shape'.",
  * @OA\Items(type="string", format="uuid")
+ * )
+ * ),
+ * // OPCIÓN 2: Enviar 'calles_ids'
+ * @OA\Schema(
+ * required={"calles_ids"},
+ * @OA\Property(
+ * property="shape",
+ * type="string",
+ * nullable=true,
+ * description="Debe ser nulo o omitido si se envía 'calles_ids'."
+ * ),
+ * @OA\Property(
+ * property="calles_ids",
+ * type="array",
+ * description="Lista de UUIDs de las calles que componen la ruta. Debe ser obligatorio si 'shape' está ausente.",
+ * @OA\Items(type="string", format="uuid"),
+ * minItems=1
+ * )
+ * )
+ * }
+ * )
+ * }
  * )
  * )
  * ),
  * @OA\Response(response=201, description="Ruta creada"),
- * @OA\Response(response=422, description="Validación fallida")
+ * @OA\Response(response=422, description="Validación fallida: Se debe enviar 'shape' o 'calles_ids'.")
  * )
  */
-public function store(Request $request)
-{
-    $validatedData = $request->validate([
-        'nombre_ruta' => 'required|string|max:255',
-        'perfil_id'   => 'required|uuid|exists:perfiles,id',
-        'shape'       => 'required|json', // Recibimos la geometría como un string JSON
-        'calles_ids'  => 'nullable|array'
-    ]);
+    public function store(Request $request)
+    {
+        $validatedData = $request->validate([
+            'nombre_ruta' => 'required|string|max:255',
+            'perfil_id'   => 'required|uuid|exists:perfiles,id',
+            // Es obligatorio si 'calles_ids' no se envía. Debe ser una cadena JSON válida.
+            'shape'       => 'required_without:calles_ids|nullable|string|json',
 
-    $ruta = null;
-
-    DB::transaction(function () use ($validatedData, &$ruta) {
-
-        // 1. Convertimos el GeoJSON a una geometría de PostGIS y creamos la ruta
-        $ruta = Ruta::create([
-            'nombre_ruta' => $validatedData['nombre_ruta'],
-            'perfil_id'   => $validatedData['perfil_id'],
-            'shape'       => DB::raw("ST_GeomFromGeoJSON('{$validatedData['shape']}')")
+            // Es obligatorio si 'shape' no se envía. Debe ser un array con al menos un ID.
+            'calles_ids'  => 'required_without:shape|nullable|array|min:1',
         ]);
 
-        // en la tabla pivote solo como referencia.
-        if (!empty($validatedData['calles_ids'])) {
-            $orden = 0;
-            foreach ($validatedData['calles_ids'] as $calleId) {
-                // Asumimos que la relación 'calles' y la tabla pivote 'ruta_calle' aún existen
-                $ruta->calles()->attach($calleId, ['orden' => $orden++]);
-            }
-        }
-    });
+        $ruta = null;
 
-    // Devolvemos la ruta creada. El accesor en el modelo se encargará de convertir
-    // el 'shape' de vuelta a GeoJSON.
-    return response()->json($ruta, 201);
-}
+        // Datos base para la creación, comunes a ambos casos
+        $dataToCreate = [
+            'nombre_ruta' => $validatedData['nombre_ruta'],
+            'perfil_id'   => $validatedData['perfil_id'],
+        ];
+
+        DB::transaction(function () use ($validatedData, $dataToCreate, &$ruta) {
+
+            // =======================================================
+            // CASO 1: Creación basada en SHAPE (Geometría)
+            // =======================================================
+            if (isset($validatedData['shape']) && $validatedData['shape'] !== null) {
+
+                // Adjuntamos el campo 'shape' convertido a geometría usando DB::raw
+                $ruta = Ruta::create(array_merge($dataToCreate, [
+                    // Usamos Query Bindings (?) para seguridad en la cadena GeoJSON
+                    'shape' => DB::raw("ST_GeomFromGeoJSON(?)", [$validatedData['shape']])
+                ]));
+
+            }
+
+            // =======================================================
+            // CASO 2: Creación basada en CALLES_IDS
+            // =======================================================
+            elseif (isset($validatedData['calles_ids']) && count($validatedData['calles_ids']) > 0) {
+
+                // Creamos la ruta sin el campo 'shape' (se asume NULL o default)
+                $ruta = Ruta::create($dataToCreate);
+
+                // Adjuntamos las calles usando la relación muchos a muchos
+                $callesToAttach = [];
+                $orden = 0;
+
+                foreach ($validatedData['calles_ids'] as $calleId) {
+                    $callesToAttach[$calleId] = ['orden' => $orden++];
+                }
+
+                $ruta->calles()->attach($callesToAttach);
+            }
+
+            // NOTA: Gracias a required_without, sabemos que uno de los dos bloques se ejecutará.
+
+        });
+
+        return response()->json($ruta, 201);
+    }
 
 /**
      * @OA\Get(
