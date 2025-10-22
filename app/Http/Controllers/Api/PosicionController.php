@@ -78,43 +78,63 @@ class PosicionController extends Controller
      * @OA\Response(response=422, description="Validación fallida.")
      * )
      */
-    public function store(Request $request, Recorrido $recorrido)
+   public function store(Request $request, Recorrido $recorrido)
 {
-    // 1. Validar los datos
+    // 1. Validar los datos de entrada
     $validatedData = $request->validate([
         'lat'       => 'required|numeric|between:-90,90',
         'lon'       => 'required|numeric|between:-180,180',
         'perfil_id' => 'required|uuid|exists:perfiles,id'
     ]);
 
-    // 2. Verificación de seguridad y estado
+    // 2. Verificación de Seguridad y Estado (usando el modelo inyectado)
+    // Verifica que el perfil enviado en el cuerpo coincida con el perfil dueño del recorrido.
     if ($recorrido->perfil_id !== $validatedData['perfil_id']) {
-        return response()->json(['error' => 'No autorizado para añadir posiciones a este recorrido.'], 403);
+        return response()->json(['error' => 'No autorizado para añadir posiciones a este recorrido. El perfil no coincide.'], 403);
     }
 
+    // Verifica que el recorrido esté activo.
     if ($recorrido->estado !== 'En Curso') {
         return response()->json(['error' => 'El recorrido debe estar "En Curso" para añadir posiciones.'], 403);
     }
 
     // 3. Crear la posición
     try {
+        // Usa la relación para asignar automáticamente recorrido_id
         $posicion = $recorrido->posiciones()->create([
             'perfil_id'    => $validatedData['perfil_id'],
             'capturado_ts' => now(),
-            // Usar BINDINGS DE PARÁMETROS para ST_MakePoint (SEGURIDAD y SINTAXIS)
+
+            // CONSTRUCCIÓN SEGURA DE LA GEOMETRÍA: Usando bindings (?) con DB::raw
             'geom'         => DB::raw("ST_SetSRID(ST_MakePoint(?, ?), 4326)", [
                 $validatedData['lon'],
                 $validatedData['lat']
             ]),
         ]);
 
-        return response()->json($posicion, Response::HTTP_CREATED);
+        // 4. Formatear la respuesta
+        // Ya que eliminamos el accesor del modelo, debemos consultar el registro
+        // de nuevo para obtener el GeoJSON formateado para la respuesta JSON.
+        $posicionFormateada = DB::table('posiciones')
+            ->where('id', $posicion->id)
+            ->select(
+                'id',
+                'recorrido_id',
+                'perfil_id',
+                'capturado_ts',
+                DB::raw('ST_AsGeoJSON(geom) as geom_geojson') // Campo GeoJSON
+            )
+            ->first();
+
+        // Si el registro se crea correctamente, devolvemos el registro formateado.
+        return response()->json($posicionFormateada, Response::HTTP_CREATED);
 
     } catch (\Exception $e) {
-        \Log::error('Error al registrar la posición:', ['error' => $e->getMessage()]);
-        // Si hay una QueryException o MassAssignmentException no manejada, saldrá 500 aquí
+        // Manejo de errores de MassAssignment o QueryException
+        \Log::error('Error al registrar la posición:', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+
         return response()->json([
-            'message' => 'Error al registrar la posición. Verifique el modelo $fillable y la configuración de PostGIS.',
+            'message' => 'Error interno al registrar la posición. Revise los logs del servidor.',
             'error_details' => app()->hasDebugMode() && config('app.debug') ? $e->getMessage() : null,
         ], 500);
     }
