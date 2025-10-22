@@ -98,6 +98,29 @@ class RutaController extends Controller
     public function store(Request $request)
     {
         // 1. Validar los datos
+
+        // 1) Validar sin lanzar excepción automática
+        $validator = Validator::make($request->all(), [
+            'nombre_ruta' => 'required|string|max:255',
+            'perfil_id'   => 'required|uuid|exists:perfiles,id',
+            // Aceptamos objeto o string; la normalización la hacemos luego
+            'shape'       => 'required_without:calles_ids|nullable',
+            'calles_ids'  => 'required_without:shape|nullable|array|min:1',
+            'calles_ids.*'=> 'uuid|exists:calles,id',
+        ]);
+
+        if ($validator->fails()) {
+            // log para ver qué explota
+            Log::warning('Validación rutas.store', [
+                'input' => $request->all(),
+                'errors' => $validator->errors()->toArray(),
+            ]);
+
+            return response()->json([
+                'message' => 'Validación fallida',
+                'errors'  => $validator->errors(),
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
         /*
         $validated = $request->validate([
             'nombre_ruta' => 'required|string|max:255',
