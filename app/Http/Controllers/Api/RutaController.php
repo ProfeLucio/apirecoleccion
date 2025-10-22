@@ -114,7 +114,33 @@ class RutaController extends Controller
                 'calles_ids.*'=> 'uuid|exists:calles,id',
             ]);
 
-            return response()->json(['ok' => true, 'data' => $request->all()], 201);
+            // Validar que al menos uno de 'shape' o 'calles_ids' esté presente
+            if (is_null($validatedData['shape']) && is_null($validatedData['calles_ids'])) {
+                return response()->json([
+                    'message' => "Se requiere al menos 'shape' o 'calles_ids'."
+                ], 422);
+            }
+            // Crear la ruta
+            $ruta = new Ruta();
+            $ruta->nombre_ruta = $validatedData['nombre_ruta'];
+            $ruta->perfil_id = $validatedData['perfil_id'];
+            if (!is_null($validatedData['shape'])) {
+                // Asignar la geometría directamente desde GeoJSON
+                $geojson = is_string($validatedData['shape']) ? $validatedData['shape'] : json_encode($validatedData['shape']);
+                $ruta->shape = DB::raw("ST_GeomFromGeoJSON('{$geojson}')");
+            }
+           // $ruta->save();
+            // Si se proporcionaron 'calles_ids', asociarlas a la ruta
+            if (!is_null($validatedData['calles_ids'])) {
+                $orden = 1;
+                foreach ($validatedData['calles_ids'] as $calleId) {
+                    $ruta->calles()->attach($calleId, ['orden' => $orden
+                    ]);
+                    $orden++;
+                }
+            }
+
+            return response()->json(['ok' => true, 'data' => $ruta], 201);
 
         } catch (\Throwable $e) {
             // 2) si el 500 es *realmente* dentro de Validator::make(), lo veremos aquí
