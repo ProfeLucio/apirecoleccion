@@ -78,11 +78,12 @@ class RutaController extends Controller
         // ==========================================================
 
         // Caso A: GeoJSON directo (string)
+        /*
         if (!empty($validated['shape'])) {
             $geojson = (string) $validated['shape'];
             // Usamos la interpolación directa que te funciona, asumiendo que el JSON fue validado.
             $shapeExpr = DB::raw("ST_SetSRID(ST_GeomFromGeoJSON('{$geojson}'), 4326)");
-        }
+        }*/
         // Caso B: unión de calles
         /*
         elseif (!empty($validated['calles_ids'])) {
