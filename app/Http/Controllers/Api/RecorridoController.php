@@ -10,7 +10,7 @@ class RecorridoController extends Controller
 {
     /**
      * @OA\Get(
-     * path="/api/recorridos",
+     * path="/api/misrecorridos",
      * summary="Listar recorridos por perfil",
      * tags={"Recorridos"},
      * @OA\Parameter(
