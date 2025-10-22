@@ -112,7 +112,14 @@ class PosicionController extends Controller
                 $validatedData['lat']
             ]),
         ]);*/
-
+        $data = [
+            'id'            => $posicion->id,
+            'recorrido_id'  => $posicion->recorrido_id,
+            'perfil_id'     => $posicion->perfil_id,
+            'capturado_ts'  => $posicion->capturado_ts,
+            'geom'          => DB::selectOne("SELECT ST_AsGeoJSON(?) AS geojson", [$posicion->geom])->geojson,
+        ];
+        /*
         // 4. Formatear la respuesta (para incluir el GeoJSON)
         // Se debe hacer una nueva consulta ya que eliminamos el accesor del modelo.
         /*
@@ -127,7 +134,7 @@ class PosicionController extends Controller
             )
             ->first();*/
 
-        return response()->json($recorrido, Response::HTTP_CREATED);
+        return response()->json($data, Response::HTTP_CREATED);
 
     } catch (\Exception $e) {
         // Manejo de errores de MassAssignment o QueryException
