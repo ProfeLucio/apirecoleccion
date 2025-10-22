@@ -40,7 +40,7 @@ Route::apiResource('calles', CalleController::class)->only(['index', 'show']);
 Route::apiResource('rutas', RutaController::class);
 
 // CRUD para Horarios (anidado dentro de las rutas)
-Route::apiResource('rutas.horarios', HorarioController::class)->shallow();
+//Route::apiResource('rutas.horarios', HorarioController::class)->shallow();
 
 
 // --- OPERACIONES EN TIEMPO REAL (Normalmente para Conductores) ---
