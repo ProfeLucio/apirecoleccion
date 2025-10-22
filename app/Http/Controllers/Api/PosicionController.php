@@ -79,29 +79,44 @@ class PosicionController extends Controller
      * )
      */
     public function store(Request $request, Recorrido $recorrido)
-    {
-        $validatedData = $request->validate([
-            'lat'       => 'required|numeric|between:-90,90',
-            'lon'       => 'required|numeric|between:-180,180',
-            'perfil_id' => 'required|uuid|exists:perfiles,id'
-        ]);
+{
+    // 1. Validar los datos
+    $validatedData = $request->validate([
+        'lat'       => 'required|numeric|between:-90,90',
+        'lon'       => 'required|numeric|between:-180,180',
+        'perfil_id' => 'required|uuid|exists:perfiles,id'
+    ]);
 
-        // --- ¡Verificación de seguridad clave! ---
-        if ($recorrido->perfil_id !== $validatedData['perfil_id']) {
-            return response()->json(['error' => 'No autorizado para añadir posiciones a este recorrido.'], 403);
-        }
-
-
-
-        // CORRECCIÓN 2: Devolvemos la posición creada, recargándola para obtener la forma GeoJSON
-        $posicion = $recorrido->posiciones()->create([
-        'perfil_id'    => $validatedData['perfil_id'],
-        'capturado_ts' => now(),
-        'geom'         => DB::raw("ST_SetSRID(ST_MakePoint({$validatedData['lon']}, {$validatedData['lat']}), 4326)"),
-        ]);
-
-        // Ya no necesitas la segunda consulta. Laravel usará el accesor al crear la respuesta JSON.
-        // Esto hace la operación más rápida (1 consulta en lugar de 2).
-        return response()->json($posicion, 201);
+    // 2. Verificación de seguridad y estado
+    if ($recorrido->perfil_id !== $validatedData['perfil_id']) {
+        return response()->json(['error' => 'No autorizado para añadir posiciones a este recorrido.'], 403);
     }
+
+    if ($recorrido->estado !== 'En Curso') {
+        return response()->json(['error' => 'El recorrido debe estar "En Curso" para añadir posiciones.'], 403);
+    }
+
+    // 3. Crear la posición
+    try {
+        $posicion = $recorrido->posiciones()->create([
+            'perfil_id'    => $validatedData['perfil_id'],
+            'capturado_ts' => now(),
+            // Usar BINDINGS DE PARÁMETROS para ST_MakePoint (SEGURIDAD y SINTAXIS)
+            'geom'         => DB::raw("ST_SetSRID(ST_MakePoint(?, ?), 4326)", [
+                $validatedData['lon'],
+                $validatedData['lat']
+            ]),
+        ]);
+
+        return response()->json($posicion, Response::HTTP_CREATED);
+
+    } catch (\Exception $e) {
+        \Log::error('Error al registrar la posición:', ['error' => $e->getMessage()]);
+        // Si hay una QueryException o MassAssignmentException no manejada, saldrá 500 aquí
+        return response()->json([
+            'message' => 'Error al registrar la posición. Verifique el modelo $fillable y la configuración de PostGIS.',
+            'error_details' => app()->hasDebugMode() && config('app.debug') ? $e->getMessage() : null,
+        ], 500);
+    }
+}
 }
