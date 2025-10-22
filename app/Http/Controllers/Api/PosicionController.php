@@ -78,64 +78,60 @@ class PosicionController extends Controller
      * @OA\Response(response=422, description="Validación fallida.")
      * )
      */
-   public function store(Request $request, Recorrido $recorrido)
+public function store(Request $request, Recorrido $recorrido)
 {
-    // 1. Validar los datos de entrada
-    $validatedData = $request->validate([
+    $validated = $request->validate([
         'lat'       => 'required|numeric|between:-90,90',
         'lon'       => 'required|numeric|between:-180,180',
-        'perfil_id' => 'required|uuid|exists:perfiles,id'
+        'perfil_id' => 'required|uuid|exists:perfiles,id',
     ]);
 
-    // 2. Verificación de Seguridad y Estado
-    if ($recorrido->perfil_id !== $validatedData['perfil_id']) {
+    if ($recorrido->perfil_id !== $validated['perfil_id']) {
         return response()->json(['error' => 'No autorizado para añadir posiciones a este recorrido.'], 403);
     }
-
     if ($recorrido->estado !== 'En Curso') {
         return response()->json(['error' => 'El recorrido debe estar "En Curso" para añadir posiciones.'], 403);
     }
 
-    // 3. Crear la posición
     try {
+        $posicion = null;
 
-        // **CORRECCIÓN CLAVE:** Usar Posicion::create directamente
-        $posicion = Posicion::create([
-            'recorrido_id' => $recorrido->id, // ID obtenido del modelo inyectado
-            'perfil_id'    => $validatedData['perfil_id'],
-            'capturado_ts' => now(),
+        DB::transaction(function () use ($validated, $recorrido, &$posicion) {
+            // 1) Crear SIN la geom (evitas mass assignment y problemas con DB::raw)
+            $posicion = \App\Models\Posicion::create([
+                'recorrido_id' => $recorrido->id,
+                'perfil_id'    => $validated['perfil_id'],
+                'capturado_ts' => now(),
+            ]);
 
-            // CONSTRUCCIÓN SEGURA DE LA GEOMETRÍA: Usando bindings (?) con DB::raw
-            'geom'         => DB::raw("ST_SetSRID(ST_MakePoint(?, ?), 4326)", [
-                $validatedData['lon'],
-                $validatedData['lat']
-            ]),
-        ]);
+            // 2) Actualizar SOLO la geom con bindings (seguro)
+            DB::update(
+                'UPDATE posiciones
+                 SET geom = ST_SetSRID(ST_MakePoint(?, ?), 4326)
+                 WHERE id = ?',
+                [
+                    // OJO: PostGIS usa X=lon, Y=lat
+                    (float)$validated['lon'],
+                    (float)$validated['lat'],
+                    $posicion->id,
+                ]
+            );
+        });
 
-        // 4. Formatear la respuesta (para incluir el GeoJSON)
-        // Se debe hacer una nueva consulta ya que eliminamos el accesor del modelo.
-        $posicionFormateada = DB::table('posiciones')
+        // 3) Devolver con GeoJSON (evita serializar geometry crudo)
+        $out = DB::table('posiciones')
             ->where('id', $posicion->id)
             ->select(
-                'id',
-                'recorrido_id',
-                'perfil_id',
-                'capturado_ts',
-                DB::raw('ST_AsGeoJSON(geom) as geom_geojson') // Campo GeoJSON
+                'id','recorrido_id','perfil_id','capturado_ts',
+                DB::raw('ST_AsGeoJSON(geom) AS geom_geojson')
             )
             ->first();
 
-        return response()->json($posicionFormateada, Response::HTTP_CREATED);
+        return response()->json($out, Response::HTTP_CREATED);
 
-    } catch (\Exception $e) {
-        // Manejo de errores de MassAssignment o QueryException
-        \Log::error('Error al registrar la posición (final):', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
-
-        // **IMPORTANTE:** Si esto falla, activa APP_DEBUG=true para ver el mensaje exacto
-        return response()->json([
-            'message' => 'Error crítico al registrar la posición. Active APP_DEBUG para detalles.',
-            'error_details' => config('app.debug') ? $e->getMessage() : null,
-        ], 500);
+    } catch (\Throwable $e) {
+        Log::error('Error al registrar la posición', ['msg'=>$e->getMessage(), 'line'=>$e->getLine()]);
+        return response()->json(['message'=>'Error crítico al registrar la posición.'], 500);
     }
 }
 }
