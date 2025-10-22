@@ -46,9 +46,9 @@ Route::apiResource('rutas.horarios', HorarioController::class)->shallow();
 // --- OPERACIONES EN TIEMPO REAL (Normalmente para Conductores) ---
 
 // Iniciar y finalizar un recorrido
-Route::get('/recorridos', [RecorridoController::class, 'index']);
 Route::post('/recorridos/iniciar', [RecorridoController::class, 'iniciarRecorrido']);
 Route::post('/recorridos/{recorrido}/finalizar', [RecorridoController::class, 'finalizarRecorrido']);
+Route::get('/misrecorridos', [RecorridoController::class, 'index']);
 
 // Historial y registro de posiciones (anidado dentro de los recorridos)
 Route::apiResource('recorridos.posiciones', PosicionController::class)->only(['index', 'store']);
