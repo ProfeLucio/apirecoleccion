@@ -7,7 +7,7 @@ use App\Models\Recorrido;
 use App\Models\Posicion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-
+use Illuminate\Http\Response;
 class PosicionController extends Controller
 {
     /**
