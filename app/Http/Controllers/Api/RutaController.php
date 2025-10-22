@@ -122,39 +122,19 @@ class RutaController extends Controller
  * @OA\Response(response=422, description="Validación fallida: Se debe enviar 'shape' o 'calles_ids'.")
  * )
  */
-protected function checkPostgis()
-    {
-        try {
-            // Ejecuta una consulta simple para obtener la versión de PostGIS
-            $result = DB::selectOne('SELECT PostGIS_Version() as version');
-
-            if (empty($result) || !isset($result->version)) {
-                throw new \Exception('PostGIS no devolvió una versión válida.');
-            }
-
-            // Opcional: Podrías loggear la versión o simplemente retornar true
-            return $result->version;
-
-        } catch (\Exception $e) {
-            // Si hay una excepción (ej. "function PostGIS_Version() does not exist"),
-            // significa que PostGIS no está cargado o la conexión falló.
-            // Registrá el error real para el desarrollador.
-            \Log::error("Fallo la verificación de PostGIS: " . $e->getMessage());
-
-            // Devolvemos una respuesta de error para el cliente
-            abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'Error de servidor: La extensión geoespacial (PostGIS) no está operativa.');
-        }
-    }
-
-    // El método store real
     public function store(Request $request)
     {
-        // 1. Verificar la funcionalidad de PostGIS antes de la lógica Geoespacial
-        $this->checkPostgis(); // Detendrá la ejecución si PostGIS falla.
+        // 1. Verificar la funcionalidad de PostGIS
+    $postgisVersion = $this->checkPostgis();
 
-        // ... (El resto de la lógica del método store ajustado)
-        // ... Aquí iría el código con el DB::transaction, etc.
+    // 2. DETENER LA EJECUCIÓN y devolver el resultado para verificación
+    return response()->json([
+        'status' => 'OK - PostGIS Verificado',
+        'postgis_version' => $postgisVersion,
+        'mensaje' => 'La lógica de creación de la ruta no se ejecutó.'
+    ], 200);
     }
+
 /**
      * @OA\Get(
      * path="/api/rutas/{id}",
