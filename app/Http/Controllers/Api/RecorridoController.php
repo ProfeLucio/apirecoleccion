@@ -45,7 +45,7 @@ class RecorridoController extends Controller
         $recorridos = Recorrido::where('ruta_id', $ruta_id)
             ->orderBy('ts_inicio', 'desc')
             ->get();*/
-        $recorridos = [];
+        $recorridos = Recorrido::all();
 
         return response()->json(['data' => $recorridos]);
     }
