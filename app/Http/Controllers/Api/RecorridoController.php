@@ -37,13 +37,15 @@ class RecorridoController extends Controller
         return response()->json(['data' => $recorridos]);
     }
 
-    public function historialPorRuta(Request $request)
+    public function historialPorRuta(Request $request, $ruta_id) // <--- Agrega $ruta_id aquí
     {
-        $request->validate([
-            'ruta_id'   => 'required|uuid|exists:rutas,id',
-        ]);
+        // Opcional: Validar que sea un UUID válido si no lo haces en el routing
+        if (!Str::isUuid($ruta_id)) {
+            return response()->json(['error' => 'UUID inválido'], 400);
+        }
 
-        $recorridos = Recorrido::where('ruta_id', $request->query('ruta_id'))
+        // Usamos directamente la variable $ruta_id que entra por la URL
+        $recorridos = Recorrido::where('ruta_id', $ruta_id)
             ->orderBy('ts_inicio', 'desc')
             ->get();
 
