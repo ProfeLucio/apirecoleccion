@@ -178,6 +178,21 @@ class RutaController extends Controller
 
     }
 
+    public function getAll()
+    {
+        // Seleccionamos los mismos campos que en index, incluyendo la conversión del shape
+        $rutas = Ruta::select(
+            'id',
+            'perfil_id',
+            'nombre_ruta',
+            'color_hex',
+            DB::raw('ST_AsGeoJSON(shape) as shape')
+        )
+        ->get();
+
+        return response()->json(['data' => $rutas]);
+    }
+
 /**
      * @OA\Get(
      * path="/api/rutas/{id}",

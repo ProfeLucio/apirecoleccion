@@ -1,0 +1,63 @@
+# Nombre descriptivo para el workflow
+name: Deploy Specific Files (Ruta & Routes)
+
+# 1. DISPARADOR (Trigger)
+on:
+  push:
+    branches:
+      - main
+    # Opcional: Solo ejecutar si cambian estos archivos específicos
+    paths:
+      - 'app/Http/Controllers/Api/RutaController.php'
+      - 'routes/api.php'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    # 2. PASOS (Steps)
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # 2.3. Sube ÚNICAMENTE los archivos específicos
+      - name: Deploy Only RutaController and Routes
+        run: |
+          # Añade la huella digital del servidor
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+          echo ">>> Deploying RutaController.php..."
+          # Copiamos SOLO el archivo RutaController.php a la carpeta destino
+          rsync -avz ./app/Http/Controllers/Api/RutaController.php ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/app/Http/Controllers/Api/
+
+          echo ">>> Deploying routes/api.php..."
+          # Copiamos SOLO el archivo api.php a la carpeta routes
+          rsync -avz ./routes/api.php ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/routes/
+
+      # 2.4. Comandos post-deploy (Necesarios para que Laravel reconozca los cambios)
+      - name: Run post-deploy commands
+        run: |
+          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} << 'EOF'
+            cd ${{ secrets.DEPLOY_PATH }}
+
+            # Es recomendable limpiar caché si tocamos rutas o config
+            echo ">>> Refreshing caches..."
+            php artisan route:clear
+            php artisan config:clear
+
+            # Generar docs de Swagger ya que tocamos el Controller
+            echo ">>> Regenerating Swagger Docs..."
+            php artisan l5-swagger:generate
+
+            # Recachear para producción
+            echo ">>> Optimizing..."
+            php artisan optimize
+            php artisan route:cache
+
+            echo ">>> Specific Deployment finished successfully!"
+          EOF
