@@ -26,4 +26,12 @@ class PerfilController extends Controller
         // Esto previene que los equipos puedan ver los UUIDs de otros.
         return response()->json(['error' => 'No autorizado para listar perfiles.'], 403);
     }
+
+     public function getAll()
+    {
+        // Seleccionamos los mismos campos que en index, incluyendo la conversión del shape
+        $rutas = Perfil::all();
+
+        return response()->json(['data' => $rutas]);
+    }
 }
