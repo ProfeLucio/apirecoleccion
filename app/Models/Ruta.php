@@ -37,5 +37,10 @@ class Ruta extends Model
         return $this->belongsToMany(Calle::class, 'ruta_calle')->withPivot('orden');
     }
 
+    public function recorridos()
+    {
+        return $this->hasMany(Recorrido::class, 'ruta_id');
+    }
+
 
 }

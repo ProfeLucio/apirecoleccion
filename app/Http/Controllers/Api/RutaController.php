@@ -49,12 +49,13 @@ class RutaController extends Controller
             'perfil_id' => 'required|uuid|exists:perfiles,id'
         ]);
 
-        $rutas = Ruta::select(
-            'id',
-            'perfil_id',
-            'nombre_ruta',
-            'color_hex',
-            DB::raw('ST_AsGeoJSON(shape) as shape')
+        $rutas = Ruta::withCount('recorridos')
+            ->select(
+                'id',
+                'perfil_id',
+                'nombre_ruta',
+                'color_hex',
+                DB::raw('ST_AsGeoJSON(shape) as shape')
         )
         ->where('perfil_id', $request->query('perfil_id'))
         ->get();
