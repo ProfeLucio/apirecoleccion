@@ -35,23 +35,31 @@ class PosicionController extends Controller
      * )
      */
     public function index(Request $request, Recorrido $recorrido)
-    {
-        $request->validate([
-            'perfil_id' => 'required|uuid|exists:perfiles,id'
-        ]);
+{
+    $request->validate([
+        'perfil_id' => 'required|uuid|exists:perfiles,id'
+    ]);
 
-        // --- ¡Verificación de seguridad clave! ---
-        if ($recorrido->perfil_id !== $request->query('perfil_id')) {
-            return response()->json(['error' => 'No autorizado para ver estas posiciones.'], 403);
-        }
+    if ($recorrido->perfil_id !== $request->query('perfil_id')) {
+        return response()->json(['error' => 'No autorizado.'], 403);
+    }
 
-        $posiciones = Posicion::where('recorrido_id', $recorrido->id)
+    $posiciones = Posicion::where('recorrido_id', $recorrido->id)
+        // --- AQUÍ ESTÁ LA CLAVE ---
+        ->select(
+            'id',
+            'recorrido_id',
+            'perfil_id',
+            'capturado_ts',
+            // Convierte el binario a String JSON: '{"type":"Point", "coordinates":[...]}'
+            \Illuminate\Support\Facades\DB::raw('ST_AsGeoJSON(geom) as geom')
+        )
+        // ---------------------------
         ->orderBy('capturado_ts', 'asc')
         ->get();
 
-        return response()->json(['data' => $posiciones]);
-    }
-
+    return response()->json(['data' => $posiciones]);
+}
     /**
      * @OA\Post(
      * path="/api/recorridos/{recorrido}/posiciones",
