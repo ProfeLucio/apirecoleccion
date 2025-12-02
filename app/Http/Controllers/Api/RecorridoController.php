@@ -41,11 +41,11 @@ class RecorridoController extends Controller
     {
 
         // Usamos directamente la variable $ruta_id que entra por la URL
-        /*
+
         $recorridos = Recorrido::where('ruta_id', $ruta_id)
             ->orderBy('ts_inicio', 'desc')
-            ->get();*/
-        $recorridos = Recorrido::all();
+            ->get();
+
 
         return response()->json(['data' => $recorridos]);
     }
