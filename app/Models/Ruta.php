@@ -27,6 +27,7 @@ class Ruta extends Model
         'color_hex',
         'shape',
         'perfil_id',
+        'recorridos_count'
     ];
 
     protected $keyType = 'string';
