@@ -49,18 +49,19 @@ class RutaController extends Controller
             'perfil_id' => 'required|uuid|exists:perfiles,id'
         ]);
 
-        $rutas = Ruta::where('perfil_id', $request->query('perfil_id'))
-            // 1. Agregamos el contador
-            ->withCount('recorridos')
-            // 2. Luego seleccionamos las columnas (Laravel fusionará el count)
-            ->select(
-                'id',
-                'perfil_id',
-                'nombre_ruta',
-                'color_hex',
-                DB::raw('ST_AsGeoJSON(shape) as shape')
-            )
-            ->get();
+        $rutas = Ruta::query()
+        ->where('perfil_id', $request->query('perfil_id'))
+        // 1. PRIMERO define tus columnas base
+        ->select(
+            'id',
+            'perfil_id',
+            'nombre_ruta',
+            'color_hex',
+            DB::raw('ST_AsGeoJSON(shape) as shape')
+        )
+        // 2. DESPUÉS agrega el contador (Eloquent lo sumará al select anterior)
+        ->withCount('recorridos')
+        ->get();
 
         return response()->json(['data' => $rutas]);
     }
