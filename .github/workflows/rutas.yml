@@ -8,7 +8,7 @@ on:
       - main
     # Opcional: Solo ejecutar si cambian estos archivos específicos
     paths:
-      - 'app/Http/Controllers/Api/PerfilController.php'
+      - 'app/Http/Controllers/Api/RecorridoController.php'
       - 'routes/api.php'
 
 jobs:
@@ -26,14 +26,14 @@ jobs:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       # 2.3. Sube ÚNICAMENTE los archivos específicos
-      - name: Deploy Only PerfilController and Routes
+      - name: Deploy Only RecorridoController and Routes
         run: |
           # Añade la huella digital del servidor
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
-          echo ">>> Deploying PerfilController.php..."
-          # Copiamos SOLO el archivo PerfilController.php a la carpeta destino
-          rsync -avz ./app/Http/Controllers/Api/PerfilController.php ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/app/Http/Controllers/Api/
+          echo ">>> Deploying RecorridoController.php..."
+          # Copiamos SOLO el archivo RecorridoController.php a la carpeta destino
+          rsync -avz ./app/Http/Controllers/Api/RecorridoController.php ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/app/Http/Controllers/Api/
 
           echo ">>> Deploying routes/api.php..."
           # Copiamos SOLO el archivo api.php a la carpeta routes

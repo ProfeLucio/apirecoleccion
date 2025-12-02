@@ -37,6 +37,19 @@ class RecorridoController extends Controller
         return response()->json(['data' => $recorridos]);
     }
 
+    public function historialPorRuta(Request $request)
+    {
+        $request->validate([
+            'ruta_id'   => 'required|uuid|exists:rutas,id',
+        ]);
+
+        $recorridos = Recorrido::where('ruta_id', $request->query('ruta_id'))
+            ->orderBy('ts_inicio', 'desc')
+            ->get();
+
+        return response()->json(['data' => $recorridos]);
+    }
+
     /**
      * @OA\Post(
      * path="/api/recorridos/iniciar",
