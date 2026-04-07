@@ -57,7 +57,7 @@ class ResetOperationalDataSeeder extends Seeder
             for ($profileIndex = 1; $profileIndex <= self::PROFILE_COUNT; $profileIndex++) {
                 $perfil = Perfil::create([
                     'id' => (string) Str::uuid(),
-                    'nombre_perfil' => "Nombre Grupo {$profileIndex}",
+                    'nombre_perfil' => "Grupo - {$profileIndex}",
                 ]);
 
                 $this->createRoutesForProfile($perfil->id, $calles);
