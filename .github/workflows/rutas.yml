@@ -12,6 +12,8 @@ on:
       - 'app/Http/Controllers/Api/RutaController.php' # <--- NUEVO
       - 'app/Models/Ruta.php'                         # <--- NUEVO
       - 'routes/api.php'
+      - 'database/seeders/**'
+      - 'database/sql/**'
 
 jobs:
   deploy:
@@ -44,6 +46,12 @@ jobs:
 
           echo ">>> Deploying routes/api.php..."
           rsync -avz ./routes/api.php ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/routes/
+
+          echo ">>> Deploying Seeders..."
+          rsync -avz ./database/seeders/ ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/database/seeders/
+
+          echo ">>> Deploying SQL scripts..."
+          rsync -avz ./database/sql/ ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/database/sql/
 
       # 2.4. Comandos post-deploy (Limpieza de caché y regeneración)
       - name: Run post-deploy commands
