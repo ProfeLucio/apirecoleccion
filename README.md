@@ -126,5 +126,104 @@ El `UUID` del recorrido se pasa en la **URL**.
 
 ---
 
+### 3.3. Subir Imagen de una Posición (`POST /api/recorridos/posiciones/{posicion_id}/imagen`)
+
+Registra o actualiza la imagen asociada a una posición específica de un recorrido.  
+El `UUID` de la posición se pasa en la **URL**.
+
+> **Restricciones:**
+> - La imagen debe enviarse codificada en **Base64** (con o sin prefijo `data:image/...;base64,`).
+> - Tamaño máximo: **5 MB** (antes de codificar).
+> - Formatos aceptados: `JPEG`, `PNG`, `WEBP`.
+> - La imagen se redimensiona automáticamente: el lado mayor no superará los **512 px**, preservando la proporción.
+> - Se almacena en formato **WEBP** con calidad 85.
+> - Solo se permite la operación si el recorrido asociado se encuentra en estado **`En Curso`**.
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|------------|-------------|
+| `imagen_base64` | string | ✅ Sí | Imagen codificada en Base64. Puede incluir el prefijo `data:image/jpeg;base64,...` o ser Base64 puro. |
+
+#### Ejemplo JSON
+
+```json
+{
+  "imagen_base64": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD..."
+}
+```
+
+#### Respuesta exitosa (`200`)
+
+```json
+{
+  "success": true,
+  "message": "Imagen registrada correctamente.",
+  "data": {
+    "posicion_id": "XXXXX-XXXX-XXXX-XXXX-XXXXXXXX",
+    "imagen": "posiciones/XXXXX-XXXX-XXXX-XXXX-XXXXXXXX.webp",
+    "url": "http://localhost:8000/storage/posiciones/XXXXX-XXXX-XXXX-XXXX-XXXXXXXX.webp"
+  }
+}
+```
+
+---
+
+### 3.4. Obtener Imagen de una Posición (`GET /api/recorridos/posiciones/{posicion_id}/imagen`)
+
+Devuelve la imagen en formato **WEBP** asociada a la posición indicada.  
+El `UUID` de la posición se pasa en la **URL**. No requiere cuerpo en la solicitud.
+
+> La respuesta es el binario de la imagen con `Content-Type: image/webp`.  
+> Se incluye cabecera `Cache-Control: public, max-age=3600`.
+
+| Parámetro URL | Tipo | Requerido | Descripción |
+|---------------|------|------------|-------------|
+| `posicion_id` | UUID | ✅ Sí | ID de la posición cuya imagen se desea obtener. |
+
+#### Ejemplo de solicitud
+
+```
+GET /api/recorridos/posiciones/XXXXX-XXXX-XXXX-XXXX-XXXXXXXX/imagen
+```
+
+---
+
+## 📋 Resumen de Rutas Disponibles
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| `GET` | `/api/vehiculos` | Listar vehículos |
+| `POST` | `/api/vehiculos` | Crear vehículo |
+| `GET` | `/api/vehiculos/{id}` | Ver vehículo |
+| `PUT` | `/api/vehiculos/{id}` | Actualizar vehículo |
+| `DELETE` | `/api/vehiculos/{id}` | Eliminar vehículo |
+| `GET` | `/api/calles` | Listar calles |
+| `GET` | `/api/calles/{id}` | Ver calle |
+| `GET` | `/api/rutas/todas` | Listar todas las rutas |
+| `GET` | `/api/rutas` | Listar rutas por perfil |
+| `GET` | `/api/rutas/{id}` | Ver ruta |
+| `POST` | `/api/rutas` | Crear ruta |
+| `POST` | `/api/recorridos/iniciar` | Iniciar recorrido |
+| `POST` | `/api/recorridos/{recorrido}/finalizar` | Finalizar recorrido |
+| `GET` | `/api/misrecorridos` | Listar mis recorridos |
+| `GET` | `/api/recorridos/rutas/{ruta_id}` | Historial de recorridos por ruta |
+| `GET` | `/api/recorridos/{recorrido}/posiciones` | Listar posiciones de un recorrido |
+| `POST` | `/api/recorridos/{recorrido}/posiciones` | Registrar posición GPS |
+| `POST` | `/api/recorridos/posiciones/{posicion_id}/imagen` | Subir imagen de posición |
+| `GET` | `/api/recorridos/posiciones/{posicion_id}/imagen` | Obtener imagen de posición |
+| `GET` | `/api/perfiles/todas` | Listar todos los perfiles |
+| `GET` | `/api/perfiles` | Listar perfiles (deshabilitado por seguridad) |
+
+---
+
+## 📖 Documentación Interactiva (Swagger)
+
+La documentación interactiva de la API está disponible en:
+
+**`http://localhost:8000/api/documentation`**
+
+Permite explorar todos los endpoints, ver los esquemas de datos y ejecutar peticiones de prueba directamente desde el navegador.
+
+---
+
 📘 **Autor:** Gonzalo Andrés Lucio López  
-📅 **Última actualización:** Octubre 2025
+📅 **Última actualización:** Mayo 2026
