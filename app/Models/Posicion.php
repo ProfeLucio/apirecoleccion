@@ -31,6 +31,7 @@ class Posicion extends Model
         'perfil_id',
         'capturado_ts',
         'geom',
+        'imagen',
     ];
 
     public function recorrido()

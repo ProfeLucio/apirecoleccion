@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Posicion;
 use App\Models\Recorrido;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class RecorridoController extends Controller
 {
@@ -141,5 +143,237 @@ class RecorridoController extends Controller
         ]);
 
         return response()->json($recorrido);
+    }
+
+    /**
+     * @OA\Post(
+     *   path="/api/recorridos/posiciones/{posicion_id}/imagen",
+     *   summary="Subir imagen de una posición",
+     *   description="Permite registrar o actualizar la imagen asociada a una posición específica de un recorrido. La imagen se recibe en formato Base64, se procesa para que su lado mayor no supere los 512px, se mantiene la proporción original y se almacena en formato WEBP. Solo se permite la operación si el recorrido asociado se encuentra en estado En Curso.",
+     *   tags={"Recorridos"},
+     *   @OA\Parameter(
+     *     name="posicion_id",
+     *     in="path",
+     *     required=true,
+     *     description="UUID de la posición a la que se asocia la imagen.",
+     *     @OA\Schema(type="string", format="uuid")
+     *   ),
+     *   @OA\RequestBody(
+     *     required=true,
+     *     @OA\JsonContent(
+     *       required={"imagen_base64"},
+     *       @OA\Property(
+     *         property="imagen_base64",
+     *         type="string",
+     *         description="Imagen codificada en Base64. Puede incluir el prefijo data URI (data:image/jpeg;base64,...) o ser Base64 puro.",
+     *         example="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQ..."
+     *       )
+     *     )
+     *   ),
+     *   @OA\Response(
+     *     response=200,
+     *     description="Imagen registrada correctamente.",
+     *     @OA\JsonContent(
+     *       @OA\Property(property="success", type="boolean", example=true),
+     *       @OA\Property(property="message", type="string", example="Imagen registrada correctamente."),
+     *       @OA\Property(
+     *         property="data",
+     *         type="object",
+     *         @OA\Property(property="posicion_id", type="string", format="uuid"),
+     *         @OA\Property(property="imagen", type="string", example="posiciones/uuid.webp"),
+     *         @OA\Property(property="url", type="string", example="https://dominio.com/storage/posiciones/uuid.webp")
+     *       )
+     *     )
+     *   ),
+     *   @OA\Response(response=404, description="La posición indicada no existe."),
+     *   @OA\Response(response=409, description="El recorrido asociado no se encuentra en curso."),
+     *   @OA\Response(response=422, description="Datos incompletos o imagen inválida."),
+     *   @OA\Response(response=500, description="Error interno al procesar la imagen.")
+     * )
+     */
+    public function subirImagenPosicion(Request $request, string $posicion_id)
+    {
+        // 1. Validar campo requerido
+        $request->validate([
+            'imagen_base64' => 'required|string',
+        ]);
+
+        // 2. Validar que el Base64 no supere 5 MB (aprox. 6.86 MB en base64)
+        $rawBase64 = $request->input('imagen_base64');
+        if (strlen($rawBase64) > 7 * 1024 * 1024) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La imagen supera el tamaño máximo permitido de 5 MB.',
+            ], 422);
+        }
+
+        // 3. Extraer la parte de datos pura (quitar prefijo data URI si existe)
+        if (str_contains($rawBase64, ',')) {
+            [, $base64Data] = explode(',', $rawBase64, 2);
+        } else {
+            $base64Data = $rawBase64;
+        }
+
+        // 4. Decodificar Base64
+        $imageData = base64_decode($base64Data, true);
+        if ($imageData === false) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La imagen enviada no es válida o no pudo ser procesada.',
+            ], 422);
+        }
+
+        // 5. Validar que es una imagen real y de tipo permitido
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $mimeType = $finfo->buffer($imageData);
+        $allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+        if (!in_array($mimeType, $allowedMimes, true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La imagen enviada no es válida o no pudo ser procesada.',
+            ], 422);
+        }
+
+        // 6. Buscar la posición
+        $posicion = Posicion::find($posicion_id);
+        if (!$posicion) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La posición indicada no existe.',
+            ], 404);
+        }
+
+        // 7. Verificar recorrido asociado
+        $recorrido = Recorrido::find($posicion->recorrido_id);
+        if (!$recorrido) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La posición no tiene un recorrido asociado válido.',
+            ], 404);
+        }
+
+        if ($recorrido->estado !== 'En Curso') {
+            return response()->json([
+                'success' => false,
+                'message' => 'No es posible registrar la imagen porque el recorrido asociado a la posición no se encuentra en curso.',
+            ], 409);
+        }
+
+        // 8. Crear imagen GD desde los datos binarios
+        $gdImage = @imagecreatefromstring($imageData);
+        if ($gdImage === false) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La imagen enviada no es válida o no pudo ser procesada.',
+            ], 422);
+        }
+
+        try {
+            // 9. Redimensionar manteniendo proporción (lado mayor máx 512 px)
+            $origWidth  = imagesx($gdImage);
+            $origHeight = imagesy($gdImage);
+            $maxSide = 512;
+
+            if ($origWidth > $maxSide || $origHeight > $maxSide) {
+                if ($origWidth >= $origHeight) {
+                    $newWidth  = $maxSide;
+                    $newHeight = (int) round($origHeight * ($maxSide / $origWidth));
+                } else {
+                    $newHeight = $maxSide;
+                    $newWidth  = (int) round($origWidth * ($maxSide / $origHeight));
+                }
+
+                $resized = imagecreatetruecolor($newWidth, $newHeight);
+                // Preservar transparencia para PNG/WEBP
+                imagealphablending($resized, false);
+                imagesavealpha($resized, true);
+                imagecopyresampled($resized, $gdImage, 0, 0, 0, 0, $newWidth, $newHeight, $origWidth, $origHeight);
+                imagedestroy($gdImage);
+                $gdImage = $resized;
+            }
+
+            // 10. Guardar como WEBP en un buffer
+            ob_start();
+            imagewebp($gdImage, null, 85);
+            $webpData = ob_get_clean();
+            imagedestroy($gdImage);
+
+            if ($webpData === false || strlen($webpData) === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'La imagen enviada no es válida o no pudo ser procesada.',
+                ], 422);
+            }
+
+            // 11. Guardar en storage/app/public/posiciones/{posicion_id}.webp
+            $relativePath = 'posiciones/' . $posicion_id . '.webp';
+            Storage::disk('public')->put($relativePath, $webpData);
+
+            // 12. Actualizar campo imagen en la posición
+            $posicion->imagen = $relativePath;
+            $posicion->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Imagen registrada correctamente.',
+                'data'    => [
+                    'posicion_id' => $posicion_id,
+                    'imagen'      => $relativePath,
+                    'url'         => Storage::disk('public')->url($relativePath),
+                ],
+            ], 200);
+
+        } catch (\Throwable $e) {
+            if (isset($gdImage) && is_resource($gdImage)) {
+                imagedestroy($gdImage);
+            }
+            return response()->json([
+                'success' => false,
+                'message' => 'Ocurrió un error al procesar la imagen de la posición.',
+            ], 500);
+        }
+    }
+
+    /**
+     * @OA\Get(
+     *   path="/api/recorridos/posiciones/{posicion_id}/imagen",
+     *   summary="Obtener imagen de una posición",
+     *   description="Devuelve la imagen en formato WEBP asociada a la posición indicada.",
+     *   tags={"Recorridos"},
+     *   @OA\Parameter(
+     *     name="posicion_id",
+     *     in="path",
+     *     required=true,
+     *     description="UUID de la posición.",
+     *     @OA\Schema(type="string", format="uuid")
+     *   ),
+     *   @OA\Response(response=200, description="Imagen WEBP de la posición."),
+     *   @OA\Response(response=404, description="Posición o imagen no encontrada.")
+     * )
+     */
+    public function getImagenPosicion(string $posicion_id)
+    {
+        $posicion = Posicion::find($posicion_id);
+        if (!$posicion) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La posición indicada no existe.',
+            ], 404);
+        }
+
+        $relativePath = 'posiciones/' . $posicion_id . '.webp';
+
+        if (!Storage::disk('public')->exists($relativePath)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La posición no tiene una imagen registrada.',
+            ], 404);
+        }
+
+        $imageData = Storage::disk('public')->get($relativePath);
+
+        return response($imageData, 200)
+            ->header('Content-Type', 'image/webp')
+            ->header('Cache-Control', 'public, max-age=3600');
     }
 }

@@ -219,7 +219,7 @@ GET /api/recorridos/posiciones/XXXXX-XXXX-XXXX-XXXX-XXXXXXXX/imagen
 
 La documentación interactiva de la API está disponible en:
 
-**`http://localhost:8000/api/documentation`**
+**`https://apirecoleccion.gonzaloandreslucio.com/api/documentation`**
 
 Permite explorar todos los endpoints, ver los esquemas de datos y ejecutar peticiones de prueba directamente desde el navegador.
 

@@ -53,6 +53,8 @@ Route::get('/misrecorridos', [RecorridoController::class, 'index']);
 
 // Historial y registro de posiciones (anidado dentro de los recorridos)
 Route::get('recorridos/rutas/{ruta_id}', [RecorridoController::class, 'historialPorRuta']);
+Route::post('recorridos/posiciones/{posicion_id}/imagen', [RecorridoController::class, 'subirImagenPosicion']);
+Route::get('recorridos/posiciones/{posicion_id}/imagen', [RecorridoController::class, 'getImagenPosicion']);
 Route::apiResource('recorridos.posiciones', PosicionController::class)->only(['index', 'store']);
 Route::get('perfiles/todas', [PerfilController::class, 'getAll']);
 Route::apiResource('perfiles', PerfilController::class)->only(['index']);
