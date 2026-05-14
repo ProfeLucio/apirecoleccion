@@ -347,7 +347,7 @@ class RecorridoController extends Controller
      *     description="UUID de la posición.",
      *     @OA\Schema(type="string", format="uuid")
      *   ),
-     *   @OA\Response(response=200, description="Imagen WEBP de la posición."),
+     *   @OA\Response(response=200, description="Imagen de la posición."),
      *   @OA\Response(response=404, description="Posición o imagen no encontrada.")
      * )
      */
