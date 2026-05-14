@@ -9,8 +9,9 @@ on:
     # Se ejecuta si cambian estos archivos específicos
     paths:
       - 'app/Http/Controllers/Api/PosicionController.php'
-      - 'app/Http/Controllers/Api/RutaController.php' # <--- NUEVO
-      - 'app/Models/Ruta.php'                         # <--- NUEVO
+      - 'app/Http/Controllers/Api/RutaController.php'
+      - 'app/Http/Controllers/Api/RecorridoController.php'
+      - 'app/Models/Ruta.php'
       - 'routes/api.php'
       - 'database/seeders/**'
       - 'database/sql/**'
@@ -38,8 +39,11 @@ jobs:
           echo ">>> Deploying PosicionController.php..."
           rsync -avz ./app/Http/Controllers/Api/PosicionController.php ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/app/Http/Controllers/Api/
 
-          echo ">>> Deploying RutaController.php..." # <--- NUEVO
+          echo ">>> Deploying RutaController.php..."
           rsync -avz ./app/Http/Controllers/Api/RutaController.php ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/app/Http/Controllers/Api/
+
+          echo ">>> Deploying RecorridoController.php..."
+          rsync -avz ./app/Http/Controllers/Api/RecorridoController.php ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/app/Http/Controllers/Api/
 
           echo ">>> Deploying Ruta Model..." # <--- NUEVO
           rsync -avz ./app/Models/Ruta.php ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/app/Models/
