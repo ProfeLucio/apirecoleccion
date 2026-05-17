@@ -319,10 +319,6 @@ class RecorridoController extends Controller
             $relativePath = 'posiciones/' . $posicion_id . '.webp';
             Storage::disk('public')->put($relativePath, $webpData);
 
-            // 12. Actualizar campo imagen en la posición
-            $posicion->imagen = $relativePath;
-            $posicion->save();
-
             return response()->json([
                 'success' => true,
                 'message' => 'Imagen registrada correctamente.',
