@@ -300,6 +300,9 @@ class RecorridoController extends Controller
                 imagecopyresampled($resized, $gdImage, 0, 0, 0, 0, $newWidth, $newHeight, $origWidth, $origHeight);
                 imagedestroy($gdImage);
                 $gdImage = $resized;
+            } else {
+                $newWidth  = $origWidth;
+                $newHeight = $origHeight;
             }
 
             // 10. Guardar como WEBP en un buffer
@@ -323,9 +326,11 @@ class RecorridoController extends Controller
                 'success' => true,
                 'message' => 'Imagen registrada correctamente.',
                 'data'    => [
-                    'posicion_id' => $posicion_id,
-                    'imagen'      => $relativePath,
-                    'url'         => Storage::disk('public')->url($relativePath),
+                    'posicion_id'  => $posicion_id,
+                    'imagen'       => $relativePath,
+                    'url'          => Storage::disk('public')->url($relativePath),
+                    'original'     => ['width' => $origWidth, 'height' => $origHeight],
+                    'almacenada'   => ['width' => $newWidth,  'height' => $newHeight],
                 ],
             ], 200);
 
