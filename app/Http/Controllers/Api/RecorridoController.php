@@ -149,7 +149,7 @@ class RecorridoController extends Controller
      * @OA\Post(
      *   path="/api/recorridos/posiciones/{posicion_id}/imagen",
      *   summary="Subir imagen de una posición",
-     *   description="Permite registrar o actualizar la imagen asociada a una posición específica de un recorrido. La imagen se recibe en formato Base64, se procesa para que su lado mayor no supere los 128px, se mantiene la proporción original y se almacena en formato WEBP. Solo se permite la operación si el recorrido asociado se encuentra en estado En Curso.",
+     *   description="Permite registrar o actualizar la imagen asociada a una posición específica de un recorrido. La imagen se recibe en formato Base64, se procesa para que su lado mayor no supere los 256px, se mantiene la proporción original y se almacena en formato WEBP. Solo se permite la operación si el recorrido asociado se encuentra en estado En Curso.",
      *   tags={"Recorridos"},
      *   @OA\Parameter(
      *     name="posicion_id",
@@ -282,7 +282,7 @@ class RecorridoController extends Controller
             // 9. Redimensionar manteniendo proporción (lado mayor máx 512 px)
             $origWidth  = imagesx($gdImage);
             $origHeight = imagesy($gdImage);
-            $maxSide = 128;
+            $maxSide = 256;
 
             if ($origWidth > $maxSide || $origHeight > $maxSide) {
                 if ($origWidth >= $origHeight) {
