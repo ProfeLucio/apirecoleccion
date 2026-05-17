@@ -214,8 +214,11 @@ class RecorridoController extends Controller
             $base64Data = $rawBase64;
         }
 
-        // 4. Decodificar Base64 (eliminar espacios/saltos de línea que rompen el modo estricto)
-        $base64Data = preg_replace('/\s+/', '', $base64Data);
+        // 4. Decodificar Base64
+        // Los '+' del base64 se convierten en espacios en form-data (URL encoding),
+        // hay que restaurarlos ANTES de eliminar whitespace real (saltos de línea).
+        $base64Data = str_replace(' ', '+', $base64Data);
+        $base64Data = preg_replace('/[\r\n\t\v\f]/', '', $base64Data);
         $imageData = base64_decode($base64Data, true);
         if ($imageData === false) {
             return response()->json([
@@ -271,7 +274,7 @@ class RecorridoController extends Controller
         if ($gdImage === false) {
             return response()->json([
                 'success' => false,
-                'message' => '[DEBUG paso 8] imagecreatefromstring falló. MIME: ' . $mimeType . ', bytes: ' . strlen($imageData) . '.',
+                'message' => '[DEBUG paso 8] imagecreatefromstring falló. MIME: ' . $mimeType . ', bytes decodificados: ' . strlen($imageData) . ', chars base64: ' . strlen($base64Data) . ', chars raw: ' . strlen($rawBase64) . '.',
             ], 422);
         }
 
