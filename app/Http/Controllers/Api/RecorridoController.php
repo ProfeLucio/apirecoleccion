@@ -220,7 +220,7 @@ class RecorridoController extends Controller
         if ($imageData === false) {
             return response()->json([
                 'success' => false,
-                'message' => 'La imagen enviada no es válida o no pudo ser procesada.',
+                'message' => '[DEBUG paso 4] base64_decode falló. Longitud del string: ' . strlen($base64Data) . ' chars.',
             ], 422);
         }
 
@@ -231,7 +231,7 @@ class RecorridoController extends Controller
         if (!in_array($mimeType, $allowedMimes, true)) {
             return response()->json([
                 'success' => false,
-                'message' => 'La imagen enviada no es válida o no pudo ser procesada.',
+                'message' => '[DEBUG paso 5] MIME detectado: ' . $mimeType . '. No está entre los permitidos.',
             ], 422);
         }
 
@@ -261,11 +261,17 @@ class RecorridoController extends Controller
         }
 
         // 8. Crear imagen GD desde los datos binarios
+        if (!function_exists('imagecreatefromstring')) {
+            return response()->json([
+                'success' => false,
+                'message' => '[DEBUG paso 8] La extensión GD no está instalada en PHP.',
+            ], 500);
+        }
         $gdImage = @imagecreatefromstring($imageData);
         if ($gdImage === false) {
             return response()->json([
                 'success' => false,
-                'message' => 'La imagen enviada no es válida o no pudo ser procesada.',
+                'message' => '[DEBUG paso 8] imagecreatefromstring falló. MIME: ' . $mimeType . ', bytes: ' . strlen($imageData) . '.',
             ], 422);
         }
 
@@ -302,7 +308,7 @@ class RecorridoController extends Controller
             if ($webpData === false || strlen($webpData) === 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'La imagen enviada no es válida o no pudo ser procesada.',
+                    'message' => '[DEBUG paso 10] imagewebp() no generó datos. GD puede no tener soporte WEBP.',
                 ], 422);
             }
 
@@ -330,7 +336,7 @@ class RecorridoController extends Controller
             }
             return response()->json([
                 'success' => false,
-                'message' => 'Ocurrió un error al procesar la imagen de la posición.',
+                'message' => '[DEBUG catch] ' . get_class($e) . ': ' . $e->getMessage(),
             ], 500);
         }
     }
