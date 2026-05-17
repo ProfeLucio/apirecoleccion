@@ -214,7 +214,8 @@ class RecorridoController extends Controller
             $base64Data = $rawBase64;
         }
 
-        // 4. Decodificar Base64
+        // 4. Decodificar Base64 (eliminar espacios/saltos de línea que rompen el modo estricto)
+        $base64Data = preg_replace('/\s+/', '', $base64Data);
         $imageData = base64_decode($base64Data, true);
         if ($imageData === false) {
             return response()->json([
