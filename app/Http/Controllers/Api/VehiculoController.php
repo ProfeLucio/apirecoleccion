@@ -12,7 +12,7 @@ class VehiculoController extends Controller
      * @OA\Get(
      * path="/api/vehiculos",
      * summary="Listar vehículos por perfil",
-     * description="Devuelve una lista paginada de vehículos asociados a un perfil específico.",
+    * description="Devuelve una lista de vehículos asociados a un perfil específico.",
      * tags={"Vehiculos"},
      * @OA\Parameter(
      * name="perfil_id",
@@ -31,7 +31,7 @@ class VehiculoController extends Controller
     public function index(Request $request)
     {
         $request->validate(['perfil_id' => 'required|uuid|exists:perfiles,id']);
-        return Vehiculo::where('perfil_id', $request->query('perfil_id'))->paginate();
+        return Vehiculo::where('perfil_id', $request->query('perfil_id'))->get();
     }
 
     /**
