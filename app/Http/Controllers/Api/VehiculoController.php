@@ -31,6 +31,7 @@ class VehiculoController extends Controller
     public function index(Request $request)
     {
         $request->validate(['perfil_id' => 'required|uuid|exists:perfiles,id']);
+        //Return all vehicles associated with the given perfil_id
         return Vehiculo::where('perfil_id', $request->query('perfil_id'))->get();
     }
 
